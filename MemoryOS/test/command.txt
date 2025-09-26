@@ -1,0 +1,5 @@
+# 论文项目复现
+cd eval
+# 在代码中配置 API 密钥和其他设置
+python3 main_loco_parse.py
+python3 evalution_loco.py
