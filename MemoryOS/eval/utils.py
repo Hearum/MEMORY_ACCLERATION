@@ -4,10 +4,12 @@ import openai
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from openai import OpenAI
+import os
 gpt_client = OpenAI(
-        api_key='',
-    base_url='https://cn2us02.opapi.win/v1'
+    api_key=os.environ.get("OPENAI_API_KEY"),
+    base_url=os.environ.get("OPENAI_API_BASE")
 )
+
 def get_timestamp():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
@@ -44,7 +46,7 @@ class OpenAIClient:
         return response.choices[0].message.content.strip()
 
 def gpt_generate_answer(prompt, messages, client):
-    return client.chat_completion(model="gpt-4o-mini", messages=messages, temperature=0.7, max_tokens=2000)
+    return client.chat_completion(model="Qwen", messages=messages, temperature=0.7, max_tokens=2000)
 
 def analyze_assistant_knowledge(dialogs, client):
     """

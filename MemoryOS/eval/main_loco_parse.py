@@ -2,9 +2,9 @@ import json
 from datetime import datetime, timedelta
 from short_term_memory import ShortTermMemory
 from mid_term_memory import MidTermMemory
-from long_term_memory import LongTermMemory
-from dynamic_update import DynamicUpdate
-from retrieval_and_answer import RetrievalAndAnswer
+from long_term_memory import LongTermMemory # 
+from dynamic_update import DynamicUpdate # 负责从短期记忆中淘汰并更新到中期记忆。
+from retrieval_and_answer import RetrievalAndAnswer # 实现记忆检索与回答生成。
 from utils import OpenAIClient, gpt_generate_answer, gpt_extract_theme, gpt_update_profile, gpt_generate_multi_summary, get_timestamp, llm_extract_keywords, gpt_personality_analysis
 import re
 import openai
@@ -14,9 +14,10 @@ import os
 total_tokens = 0
 num_samples=0
 # Initialize OpenAI client
+
 client = OpenAIClient(
-    api_key='',
-    base_url='https://cn2us02.opapi.win/v1'
+    api_key=os.environ.get("OPENAI_API_KEY"),
+    base_url=os.environ.get("OPENAI_API_BASE")
 )
 
 # Heat threshold
@@ -25,7 +26,7 @@ H_THRESHOLD = 5.0
 如果其“热度”超过阈值，就触发：
 - 调用 gpt_personality_analysis 对未分析的对话段落进行分析。
 - 得到新的 profile用户画像、private facts私有信息、assistant knowledge。
--如果已存在旧画像，则调用 gpt_update_profile 融合更新。
+- 如果已存在旧画像，则调用 gpt_update_profile 融合更新。
 - 将私有事实逐条存入长期记忆；助手知识也加入。
 - 重置该 segment 的热度指标，避免重复分析。
 '''
@@ -85,6 +86,16 @@ def update_user_profile_from_top_segment(mid_mem, long_mem, sample_id, client):
             mid_mem.save()
             print(f"Update complete: Segment {sid} heat has been reset.")
 
+# 输入：用户问题、短/长记忆、检索结果、知识、说话人信息。
+'''
+step:
+1.从短期记忆构造 近期对话文本。
+2.从检索结果构造 历史记忆片段。
+3.从长期记忆取 用户画像、助手知识。
+4.替换掉 user 和 assistant 的字样，改为具体 speaker_a / speaker_b。
+5.组织成 system_prompt角色设定+回答规则和 user_prompt具体上下文+问题。
+6.调用 GPT API (原文这里用的是Qwen,我们改成ds) 生成答案。
+'''
 def generate_system_response_with_meta(query, short_mem, long_mem, retrieval_queue, long_konwledge, client, sample_id, speaker_a, speaker_b, meta_data):
     """
     Generate system response with speaker roles clearly defined.
@@ -146,9 +157,16 @@ def generate_system_response_with_meta(query, short_mem, long_mem, retrieval_que
         {"role": "user", "content": user_prompt}
     ]
     
-    response = client.chat_completion(model="gpt-4o-mini", messages=messages, temperature=0.7, max_tokens=2000)
+    response = client.chat_completion(model="Qwen", messages=messages, temperature=0.7, max_tokens=2000)
     return response, system_prompt, user_prompt
 
+# 对话预处理
+# 输入locomo10 格式的对话数据。
+'''
+- 遍历每个 session,把对话内容转换为 统一格式[user_input、agent_response、timestamp]。
+- 比较有意思的是这里支持图片内容, blip_caption 会作为文字描述拼接。
+- 用户/助手说话轮次被组织成成对的 QA。
+'''
 def process_conversation(conversation_data):
     """
     Process conversation data from locomo10 format into memory system format.
@@ -192,7 +210,8 @@ def process_conversation(conversation_data):
     
     return processed
 
-def main():
+
+def main_locomomo():
     # 直接处理整个数据集，不需要命令行参数
     print("开始处理整个locomo10数据集...")
     
@@ -320,5 +339,172 @@ def main():
     except Exception as e:
         print(f"最终保存结果时出错：{e}")
 
+def process_longmemeval_sessions(haystack_sessions, haystack_dates):
+    """
+    Process LongMemEval sessions into memory system format.
+    Each session is a list of turns: {"role": "user"/"assistant", "content": "..."}
+    """
+    processed = []
+    for session_idx, session in enumerate(haystack_sessions):
+        timestamp = haystack_dates[session_idx] if haystack_dates else ""
+        for turn in session:
+            if turn["role"] == "user":
+                processed.append({
+                    "user_input": turn["content"],
+                    "agent_response": "",
+                    "timestamp": timestamp
+                })
+            else:
+                if processed:
+                    processed[-1]["agent_response"] = turn["content"]
+                else:
+                    processed.append({
+                        "user_input": "",
+                        "agent_response": turn["content"],
+                        "timestamp": timestamp
+                    })
+    return processed
+
+
+def main_longmemeval(data_file: str, output_file: str = None):
+    """
+    Main function to run evaluation on LongMemEval dataset.
+    Args:
+        data_file: path to longmemeval JSON file
+        output_file: path to save results (default: based on input file)
+    """
+    if output_file is None:
+        output_file = f"results_{os.path.basename(data_file).replace('.json','')}.json"
+
+    print(f"开始处理 LongMemEval 数据集: {data_file}")
+
+    # 创建记忆文件存储目录
+    dir_name = f"mem_tmp_{os.path.basename(data_file).replace('.json','')}"
+    os.makedirs(dir_name, exist_ok=True)
+    print(f"临时记忆目录: {dir_name}")
+
+    # Load LongMemEval dataset
+    try:
+        with open(data_file, "r", encoding="utf-8") as f:
+            dataset = json.load(f)
+        print(f"成功加载数据集，共 {len(dataset)} 个样本")
+    except FileNotFoundError:
+        print(f"错误：找不到 {data_file} 文件，请确保文件在当前目录中")
+        return
+    except Exception as e:
+        print(f"加载数据集时出错：{e}")
+        return
+
+    results = []
+    total_samples = len(dataset)
+
+    for idx, sample in enumerate(dataset):
+        sample_id = sample.get("question_id", f"sample_{idx+1}")
+        print(f"正在处理样本 {idx + 1}/{total_samples}: {sample_id}")
+
+        # Process conversation
+        processed_dialogs = process_longmemeval_sessions(
+            sample["haystack_sessions"],
+            sample.get("haystack_dates", [])
+        )
+
+        if not processed_dialogs:
+            print(f"样本 {sample_id} 没有有效的对话数据，跳过")
+            continue
+
+        # Construct QA pairs
+        qa_pairs = [{
+            "question": sample["question"],
+            "answer": sample["answer"],
+            "question_id": sample.get("question_id", ""),
+            "question_type": sample.get("question_type", ""),
+            "question_date": sample.get("question_date", "")
+        }]
+
+        # Speakers
+        speaker_a = "User"
+        speaker_b = "Assistant"
+
+        # Initialize memory modules
+        short_mem = ShortTermMemory(max_capacity=500, file_path=f"{dir_name}/{sample_id}_short_term.json")
+        mid_mem = MidTermMemory(max_capacity=2000, file_path=f"{dir_name}/{sample_id}_mid_term.json")
+        long_mem = LongTermMemory(file_path=f"{dir_name}/{sample_id}_long_term.json")
+        dynamic_updater = DynamicUpdate(short_mem, mid_mem, long_mem, topic_similarity_threshold=0.6, client=client)
+        retrieval_system = RetrievalAndAnswer(short_mem, mid_mem, long_mem, dynamic_updater, queue_capacity=10)
+
+        # Store conversation history in memory system
+        for dialog in processed_dialogs:
+            short_mem.add_qa_pair(dialog)
+            if short_mem.is_full():
+                dynamic_updater.bulk_evict_and_update_mid_term()
+            update_user_profile_from_top_segment(mid_mem, long_mem, sample_id, client)
+
+        # Process QA pairs
+        for qa_idx, qa in enumerate(qa_pairs):
+            question = qa["question"]
+            original_answer = qa.get("answer", "")
+            if not original_answer:
+                original_answer = qa.get("adversarial_answer", "")
+
+            retrieval_result = retrieval_system.retrieve(
+                question,
+                segment_threshold=0.1,
+                page_threshold=0.1,
+                knowledge_threshold=0.1,
+                client=client
+            )
+
+            meta_data = {
+                "sample_id": sample_id,
+                "speaker_a": speaker_a,
+                "speaker_b": speaker_b,
+                "question_type": qa.get("question_type", "")
+            }
+
+            system_answer, system_prompt, user_prompt = generate_system_response_with_meta(
+                question,
+                short_mem,
+                long_mem,
+                retrieval_result["retrieval_queue"],
+                retrieval_result["long_term_knowledge"],
+                client,
+                sample_id,
+                speaker_a,
+                speaker_b,
+                meta_data
+            )
+
+            results.append({
+                "sample_id": sample_id,
+                "speaker_a": speaker_a,
+                "speaker_b": speaker_b,
+                "question": question,
+                "system_answer": system_answer,
+                "original_answer": original_answer,
+                "question_type": qa.get("question_type", ""),
+                "timestamp": get_timestamp()
+            })
+
+        # 每处理完一个样本就保存一次结果
+        try:
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(results, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"保存结果时出错：{e}")
+
+        print(f"样本 {idx + 1} 处理完成，结果已保存到 {output_file}")
+
+    print(f"全部样本处理完成，最终结果保存在 {output_file}")
+
 if __name__ == "__main__":
-    main()
+    # 测试logomomo
+    # main_locomomo()
+
+    # 测试 LongMemEval_S
+    main_longmemeval("/home/shm/documents/longmemeval_s.json")
+    
+    # 测试 LongMemEval_M
+    # main_longmemeval("/home/shm/documents/longmemeval_m.json")
+    
+    # 测试 LongMemEval_Oracle
+    # main_longmemeval("longmemeval_oracle.json")

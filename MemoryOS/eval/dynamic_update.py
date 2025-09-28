@@ -37,7 +37,7 @@ Continuous?""".format(
         ]
         
         response = self.client.chat_completion(
-            model="gpt-4o-mini",
+            model="Qwen",
             messages=messages,
             temperature=0.0,
             max_tokens=10
@@ -80,7 +80,7 @@ Continuous?""".format(
         ]
         
         return self.client.chat_completion(
-            model="gpt-4o-mini",
+            model="Qwen",
             messages=messages,
             temperature=0.3,
             max_tokens=100
