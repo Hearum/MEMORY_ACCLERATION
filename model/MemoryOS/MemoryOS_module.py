@@ -316,6 +316,8 @@ class MemoryOSModel:
         for qa_idx, qa in enumerate(qa_pairs):
             question = qa.get("question", "")
             original_answer = qa.get("answer") or qa.get("adversarial_answer", "")
+            import pdb
+            pdb.set_trace()
             meta_data = {
                 "sample_id": sample_id,
                 "speaker_a": speaker_a,
