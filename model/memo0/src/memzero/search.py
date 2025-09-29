@@ -18,12 +18,13 @@ load_dotenv()
 class MemorySearch:
     def __init__(self, output_path="results.json", top_k=10, filter_memories=False, is_graph=False):
         self.mem0_client = MemoryClient(
-            api_key=os.getenv("MEM0_API_KEY"),
-            org_id=os.getenv("MEM0_ORGANIZATION_ID"),
-            project_id=os.getenv("MEM0_PROJECT_ID"),
+            api_key="m0-o4vPcNqKnUPAmCR6a1nGHzOud7iZlgStYHglKpcH", #os.getenv("MEM0_API_KEY"),
+            org_id="org_64dpTwop0JP2DFXHPQNw8wm4VT8LU4h9t2uNIuW8", #os.getenv("MEM0_ORGANIZATION_ID"),
+            project_id="proj_ygWVUJtHSAIyvkg0afkNbIkhbmQ97QQKB2azemmm", # os.getenv("MEM0_PROJECT_ID"),
         )
+        
         self.top_k = top_k
-        self.openai_client = OpenAI()
+        self.openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"),base_url=os.environ.get("OPENAI_API_BASE"))
         self.results = defaultdict(list)
         self.output_path = output_path
         self.filter_memories = filter_memories

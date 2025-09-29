@@ -1,12 +1,12 @@
 
 import json
 from datetime import datetime, timedelta
-from short_term_memory import ShortTermMemory
-from mid_term_memory import MidTermMemory
-from long_term_memory import LongTermMemory # 
-from dynamic_update import DynamicUpdate # 负责从短期记忆中淘汰并更新到中期记忆。
-from retrieval_and_answer import RetrievalAndAnswer # 实现记忆检索与回答生成。
-from utils import OpenAIClient, gpt_generate_answer, gpt_extract_theme, gpt_update_profile, gpt_generate_multi_summary, get_timestamp, llm_extract_keywords, gpt_personality_analysis
+from .short_term_memory import ShortTermMemory
+from .mid_term_memory import MidTermMemory
+from .long_term_memory import LongTermMemory # 
+from .dynamic_update import DynamicUpdate # 负责从短期记忆中淘汰并更新到中期记忆。
+from .retrieval_and_answer import RetrievalAndAnswer # 实现记忆检索与回答生成。
+from .memoryos_utils import OpenAIClient, gpt_generate_answer, gpt_extract_theme, gpt_update_profile, gpt_generate_multi_summary, get_timestamp, llm_extract_keywords, gpt_personality_analysis
 import re
 import openai
 import time
@@ -204,7 +204,31 @@ def process_conversation(conversation_data):
     
     return processed
 
-
+def process_longmemeval_sessions(haystack_sessions, haystack_dates):
+    """
+    Process LongMemEval sessions into memory system format.
+    Each session is a list of turns: {"role": "user"/"assistant", "content": "..."}
+    """
+    processed = []
+    for session_idx, session in enumerate(haystack_sessions):
+        timestamp = haystack_dates[session_idx] if haystack_dates else ""
+        for turn in session:
+            if turn["role"] == "user":
+                processed.append({
+                    "user_input": turn["content"],
+                    "agent_response": "",
+                    "timestamp": timestamp
+                })
+            else:
+                if processed:
+                    processed[-1]["agent_response"] = turn["content"]
+                else:
+                    processed.append({
+                        "user_input": "",
+                        "agent_response": turn["content"],
+                        "timestamp": timestamp
+                    })
+    return processed
 
 class MemoryOSModel:
     
@@ -230,27 +254,52 @@ class MemoryOSModel:
 
         return short_mem, mid_mem, long_mem, dynamic_updater, retrieval_system
 
-    def generate_answer(self, idx, sample):
+    def generate_answer(self, idx, sample, dataset_name,output_file):
         """
         Generate system answer for a single QA pair.
         """
         # print(f"正在处理样本 {idx + 1}/{total_samples}: {sample.get('sample_id', 'unknown')}")
-        sample_id = sample.get("sample_id", "unknown_sample")
-        conversation_data = sample["conversation"]
-        qa_pairs = sample["qa"]
-        processed_dialogs = process_conversation(conversation_data)
+        sample_id = sample.get("sample_id") or sample.get("question_id", f"sample_{idx+1}")
+        if dataset_name == "locomo10":
+            processed_dialogs = process_conversation(sample.get("conversation", []))
+            qa_pairs = sample.get("qa", [])
+            speaker_a = sample.get("conversation", {}).get("speaker_a", "User")
+            speaker_b = sample.get("conversation", {}).get("speaker_b", "Assistant")
+            mem_dir = f"./results/mem_tmp_{dataset_name}_final"
+            os.makedirs(mem_dir, exist_ok=True)
+
+        elif dataset_name == "longmemeval":
+            processed_dialogs = process_longmemeval_sessions(
+                sample.get("haystack_sessions", []),
+                sample.get("haystack_dates", [])
+            )
+            qa_pairs = [{
+                "question": sample.get("question", ""),
+                "answer": sample.get("answer", ""),
+                "question_id": sample.get("question_id", ""),
+                "question_type": sample.get("question_type", ""),
+                "question_date": sample.get("question_date", "")
+            }]
+            speaker_a = "User"
+            speaker_b = "Assistant"
+            mem_dir = f"./results/mem_tmp_{dataset_name}_longmemeval"
+            os.makedirs(mem_dir, exist_ok=True)
+
+        else:
+            raise ValueError(f"Unsupported dataset_type: {dataset_name}")
 
         if not processed_dialogs:
             print(f"样本 {sample_id} 没有有效的对话数据，跳过")
             return 
 
-        speaker_a = conversation_data["speaker_a"]
-        speaker_b = conversation_data["speaker_b"]
+        speaker_a = sample.get("speaker_a","User")
+        speaker_b = sample.get("speaker_b","Assistant")
 
         # Initialize memory modules
-        short_mem = ShortTermMemory(max_capacity=1, file_path=f"mem_tmp_loco_final/{sample_id}_short_term.json")
-        mid_mem = MidTermMemory(max_capacity=2000, file_path=f"mem_tmp_loco_final/{sample_id}_mid_term.json")
-        long_mem = LongTermMemory(file_path=f"mem_tmp_loco_final/{sample_id}_long_term.json")
+        short_mem = ShortTermMemory(max_capacity=1, file_path=f"./results/mem_tmp_{dataset_name}_final/{sample_id}_short_term.json")
+        mid_mem = MidTermMemory(max_capacity=2000, file_path=f"./results/mem_tmp_{dataset_name}_final/{sample_id}_mid_term.json")
+        long_mem = LongTermMemory(file_path=f"./results/mem_tmp_{dataset_name}_final/{sample_id}_long_term.json")
+
         dynamic_updater = DynamicUpdate(short_mem, mid_mem, long_mem, topic_similarity_threshold=0.6, client=client)
         retrieval_system = RetrievalAndAnswer(short_mem, mid_mem, long_mem, dynamic_updater, queue_capacity=10)
 
@@ -261,47 +310,56 @@ class MemoryOSModel:
                 dynamic_updater.bulk_evict_and_update_mid_term()
             update_user_profile_from_top_segment(mid_mem, long_mem, sample_id, client)
 
-      # Process QA pairs
-        qa_count = len(qa_pairs)
+        results = []
+        # Process QA pairs
+        # qa_count = len(qa_pairs)
         for qa_idx, qa in enumerate(qa_pairs):
-            print(f"  处理问答 {qa_idx + 1}/{qa_count}")
-            question = qa["question"]
-            original_answer = qa.get("answer", "")
-            category = qa["category"]
-            evidence = qa.get("evidence", "")
-            if(original_answer == ""):
-                original_answer = qa.get("adversarial_answer", "")
-            # Retrieve and generate answer
-            retrieval_result = retrieval_system.retrieve(
-                question, 
-                segment_threshold=0.1, 
-                page_threshold=0.1, 
-                knowledge_threshold=0.1, 
-                client=client
-            )
-            
-            # Generate meta data for the conversation
+            question = qa.get("question", "")
+            original_answer = qa.get("answer") or qa.get("adversarial_answer", "")
             meta_data = {
                 "sample_id": sample_id,
                 "speaker_a": speaker_a,
                 "speaker_b": speaker_b,
-                "category": category,
-                "evidence": evidence
+                "category": qa.get("category", ""),
+                "question_type": qa.get("question_type", "")
             }
-            
-            system_answer, system_prompt, user_prompt = generate_system_response_with_meta(
-                question, 
-                short_mem, 
-                long_mem, 
-                retrieval_result["retrieval_queue"], 
+            retrieval_result = retrieval_system.retrieve(
+                question,
+                segment_threshold=0.1,
+                page_threshold=0.1,
+                knowledge_threshold=0.1,
+                client=self.client
+            )
+            system_answer, _, _ = generate_system_response_with_meta(
+                question,
+                short_mem,
+                long_mem,
+                retrieval_result["retrieval_queue"],
                 retrieval_result["long_term_knowledge"],
-                client, 
-                sample_id, 
-                speaker_a, 
-                speaker_b, 
+                self.client,
+                sample_id,
+                speaker_a,
+                speaker_b,
                 meta_data
             )
-        return system_answer
+            results.append({
+                "sample_id": sample_id,
+                "speaker_a": speaker_a,
+                "speaker_b": speaker_b,
+                "question": question,
+                "system_answer": system_answer,
+                "original_answer": original_answer,
+                "timestamp": get_timestamp(),
+                **({"category": qa.get("category")} if "category" in qa else {}),
+                **({"question_type": qa.get("question_type")} if "question_type" in qa else {})
+            })
+        try:
+            with open(output_file, "a", encoding="utf-8") as f:
+                json.dump(results, f, ensure_ascii=False, indent=2)
+            print(f"sample {idx + 1} success, result save in {output_file}")
+        except Exception as e:
+            print(f"somthing woring happen in save: {e}")
+    
 
 
 # def get_model(client):

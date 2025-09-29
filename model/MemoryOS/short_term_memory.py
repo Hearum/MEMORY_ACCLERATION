@@ -1,6 +1,6 @@
 import json
 from collections import deque
-from utils import get_timestamp
+from .memoryos_utils import get_timestamp
 
 class ShortTermMemory:
     def __init__(self, max_capacity=10, file_path="short_term.json"):

@@ -3,14 +3,14 @@ import numpy as np
 from collections import defaultdict
 import faiss
 import heapq
-from utils import get_timestamp, generate_id, get_embedding, normalize_vector, llm_extract_keywords
+from .memoryos_utils import get_timestamp, generate_id, get_embedding, normalize_vector, llm_extract_keywords
 from datetime import datetime
-from utils import OpenAIClient
-from utils import get_timestamp, generate_id, get_embedding, normalize_vector, llm_extract_keywords, compute_time_decay
-
+from .memoryos_utils import OpenAIClient
+from .memoryos_utils import get_timestamp, generate_id, get_embedding, normalize_vector, llm_extract_keywords, compute_time_decay
+import os
 client = OpenAIClient(
-    api_key='',
-    base_url='https://cn2us02.opapi.win/v1'
+    api_key=os.environ.get("OPENAI_API_KEY"),
+    base_url=os.environ.get("OPENAI_API_BASE")
 )
 
 def compute_recency(last_visit_time, tau=24):
@@ -126,7 +126,7 @@ class MidTermMemory:
         heapq.heapify(self.heap)
 
     def insert_pages_into_session(self, summary, keyworks, pages, similarity_threshold=0.6, alpha=1.0):
-        new_summary_vec = get_embedding(summary)
+        new_summary_vec = get_embedding(summary,"all-MiniLM-L6-v2")
         new_summary_vec = normalize_vector(new_summary_vec)
         new_keywords = keyworks
         

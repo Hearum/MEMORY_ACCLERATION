@@ -1,4 +1,4 @@
-from utils import gpt_summarize, generate_id, get_timestamp, gpt_update_profile, gpt_generate_multi_summary
+from .memoryos_utils import gpt_summarize, generate_id, get_timestamp, gpt_update_profile, gpt_generate_multi_summary
 
 class DynamicUpdate:
     def __init__(self, short_term_memory, mid_term_memory, long_term_memory, topic_similarity_threshold=0.8, client=None):

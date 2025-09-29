@@ -1,6 +1,6 @@
 import json
 import numpy as np
-from utils import get_timestamp, get_embedding, normalize_vector
+from .memoryos_utils import get_timestamp, get_embedding, normalize_vector
 
 class LongTermMemory:
     def __init__(self, file_path="long_term.json"):

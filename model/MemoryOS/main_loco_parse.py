@@ -5,7 +5,7 @@ from mid_term_memory import MidTermMemory
 from long_term_memory import LongTermMemory # 
 from dynamic_update import DynamicUpdate # 负责从短期记忆中淘汰并更新到中期记忆。
 from retrieval_and_answer import RetrievalAndAnswer # 实现记忆检索与回答生成。
-from utils import OpenAIClient, gpt_generate_answer, gpt_extract_theme, gpt_update_profile, gpt_generate_multi_summary, get_timestamp, llm_extract_keywords, gpt_personality_analysis
+from .memoryos_utils import OpenAIClient, gpt_generate_answer, gpt_extract_theme, gpt_update_profile, gpt_generate_multi_summary, get_timestamp, llm_extract_keywords, gpt_personality_analysis
 import re
 import openai
 import time

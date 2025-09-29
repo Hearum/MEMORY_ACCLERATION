@@ -5,11 +5,13 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 import os
+
 gpt_client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
     base_url=os.environ.get("OPENAI_API_BASE")
 )
 
+import shutil
 def get_timestamp():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
@@ -17,7 +19,24 @@ def generate_id(prefix="id"):
     return f"{prefix}_{uuid.uuid4().hex[:8]}"
 
 def get_embedding(text, model_name="all-MiniLM-L6-v2"):
-    model = SentenceTransformer(model_name)
+    LOCAL_MODEL_PATH = os.path.expanduser(":~/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf")
+    # try:
+    # print(f"[DEBUG] Loading embedding model: {model_name}")
+    if os.path.exists(LOCAL_MODEL_PATH):
+        model_path = LOCAL_MODEL_PATH
+        model = SentenceTransformer(model_path, local_files_only=True)
+    else:
+        model = SentenceTransformer(model_name)
+    # except Exception as e:
+    #     print(f"[WARN] Failed to load model {model_name}: {e}")
+    #     # 删除本地缓存重试
+    #     cache_dir = os.path.join(os.path.expanduser("~/.cache/huggingface/transformers"), model_name)
+    #     if os.path.exists(cache_dir):
+    #         print(f"[INFO] Removing corrupted cache: {cache_dir}")
+    #         shutil.rmtree(cache_dir)
+    #     print("[INFO] Retrying download...")
+    #     model = SentenceTransformer(model_name)
+
     embedding = model.encode([text], convert_to_numpy=True)[0]
     return embedding
 
@@ -36,7 +55,7 @@ class OpenAIClient:
         openai.api_base = self.base_url
 
     def chat_completion(self, model, messages, temperature=0.7, max_tokens=2000):
-        print("调用 GPT 接口，模型:", model)
+
         response = gpt_client.chat.completions.create(
             model=model,
             messages=messages,
