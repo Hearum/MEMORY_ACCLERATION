@@ -121,3 +121,7 @@ python evals.py --input_file  --output_file
 python3 evaluate_qa.py gpt-4o your_hypothesis_file ../../data/longmemeval_oracle.json
 ```
 
+## Metric
+
+## Perforom
+
