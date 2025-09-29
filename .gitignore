@@ -1,4 +1,4 @@
-MEMORY_ACCLERATION/model/MemoryOS/eval/mem_tmp_loco_final
-MEMORY_ACCLERATION/model/MemoryOS/eval/mem_tmp_longmemeval_s
-MEMORY_ACCLERATION/result
-MEMORY_ACCLERATION/dataset
+/model/MemoryOS/eval/mem_tmp_loco_final
+/model/MemoryOS/eval/mem_tmp_longmemeval_s
+/result
+/dataset
