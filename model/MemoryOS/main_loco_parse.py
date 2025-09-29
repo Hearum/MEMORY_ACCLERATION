@@ -212,8 +212,8 @@ def process_conversation(conversation_data):
 
 
 def main_locomomo():
-    # 直接处理整个数据集，不需要命令行参数
-    print("开始处理整个locomo10数据集...")
+
+    print("begin for locomo10 dataset...")
     
     # 创建记忆文件存储目录
     os.makedirs("mem_tmp_loco_final", exist_ok=True)
