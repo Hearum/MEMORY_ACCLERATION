@@ -23,3 +23,25 @@ W0930 13:55:38.446456 2770651 site-packages/torch/utils/cpp_extension.py:2425] I
 [2025-09-30 13:55:39] CUDA-fused xIELU not available (No module named 'xielu') – falling back to a Python version.
 For CUDA xIELU (experimental), `pip install git+https://github.com/nickjbrowning/XIELU`
 [2025-09-30 13:55:39] MOE_RUNNER_BACKEND is not initialized, using triton backend
+[2025-09-30 13:55:40] Load weight begin. avail mem=23.13 GB
+Loading safetensors checkpoint shards:   0% Completed | 0/2 [00:00<?, ?it/s]
+Loading safetensors checkpoint shards:  50% Completed | 1/2 [00:01<00:01,  1.05s/it]
+Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:01<00:00,  1.41it/s]
+Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:01<00:00,  1.32it/s]
+
+[2025-09-30 13:55:42] Load weight end. type=LlamaForCausalLM, dtype=torch.bfloat16, avail mem=17.01 GB, mem usage=6.12 GB.
+[2025-09-30 13:55:42] KV Cache is allocated. #tokens: 64000, K size: 3.42 GB, V size: 3.42 GB
+[2025-09-30 13:55:42] Memory pool end. avail mem=10.14 GB
+[2025-09-30 13:55:42] Capture cuda graph begin. This can take up to several minutes. avail mem=10.10 GB
+[2025-09-30 13:55:42] Capture cuda graph bs [1, 2, 4, 8]
+  0%|          | 0/4 [00:00<?, ?it/s]Capturing batches (bs=8 avail_mem=10.10 GB):   0%|          | 0/4 [00:00<?, ?it/s]Capturing batches (bs=8 avail_mem=10.10 GB):  25%|██▌       | 1/4 [00:15<00:45, 15.13s/it]Capturing batches (bs=4 avail_mem=10.05 GB):  25%|██▌       | 1/4 [00:15<00:45, 15.13s/it]Capturing batches (bs=2 avail_mem=10.04 GB):  25%|██▌       | 1/4 [00:15<00:45, 15.13s/it]Capturing batches (bs=2 avail_mem=10.04 GB):  75%|███████▌  | 3/4 [00:15<00:03,  3.96s/it]Capturing batches (bs=1 avail_mem=10.04 GB):  75%|███████▌  | 3/4 [00:15<00:03,  3.96s/it]Capturing batches (bs=1 avail_mem=10.04 GB): 100%|██████████| 4/4 [00:15<00:00,  3.82s/it]
+[2025-09-30 13:55:57] Capture cuda graph end. Time elapsed: 15.67 s. mem usage=0.07 GB. avail mem=10.04 GB.
+[2025-09-30 13:55:58] max_total_num_tokens=64000, chunked_prefill_size=4096, max_prefill_tokens=16384, max_running_requests=50, context_len=131072, available_gpu_mem=10.04 GB
+[2025-09-30 13:55:58] INFO:     Started server process [2770326]
+[2025-09-30 13:55:58] INFO:     Waiting for application startup.
+[2025-09-30 13:55:58] INFO:     Application startup complete.
+[2025-09-30 13:55:58] INFO:     Uvicorn running on http://0.0.0.0:30004 (Press CTRL+C to quit)
+[2025-09-30 13:55:59] INFO:     127.0.0.1:51778 - "GET /get_model_info HTTP/1.1" 200 OK
+[2025-09-30 13:55:59] Prefill batch. #new-seq: 1, #new-token: 7, #cached-token: 0, token usage: 0.00, #running-req: 0, #queue-req: 0, 
+[2025-09-30 13:56:00] INFO:     127.0.0.1:51792 - "POST /generate HTTP/1.1" 200 OK
+[2025-09-30 13:56:00] The server is fired up and ready to roll!
