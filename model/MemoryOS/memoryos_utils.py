@@ -18,15 +18,24 @@ def get_timestamp():
 def generate_id(prefix="id"):
     return f"{prefix}_{uuid.uuid4().hex[:8]}"
 
+LOCAL_MODEL_PATH = os.path.expanduser(":~/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf")
+# try:
+# print(f"[DEBUG] Loading embedding model: {model_name}")
+if os.path.exists(LOCAL_MODEL_PATH):
+    model_path = LOCAL_MODEL_PATH
+    embedding_model = SentenceTransformer(model_path, local_files_only=True)
+else:
+    embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+
 def get_embedding(text, model_name="all-MiniLM-L6-v2"):
-    LOCAL_MODEL_PATH = os.path.expanduser(":~/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf")
-    # try:
-    # print(f"[DEBUG] Loading embedding model: {model_name}")
-    if os.path.exists(LOCAL_MODEL_PATH):
-        model_path = LOCAL_MODEL_PATH
-        model = SentenceTransformer(model_path, local_files_only=True)
-    else:
-        model = SentenceTransformer(model_name)
+    # LOCAL_MODEL_PATH = os.path.expanduser(":~/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2/snapshots/c9745ed1d9f207416be6d2e6f8de32d1f16199bf")
+    # # try:
+    # # print(f"[DEBUG] Loading embedding model: {model_name}")
+    # if os.path.exists(LOCAL_MODEL_PATH):
+    #     model_path = LOCAL_MODEL_PATH
+    #     model = SentenceTransformer(model_path, local_files_only=True)
+    # else:
+    #     model = SentenceTransformer(model_name)
     # except Exception as e:
     #     print(f"[WARN] Failed to load model {model_name}: {e}")
     #     # 删除本地缓存重试
@@ -37,7 +46,7 @@ def get_embedding(text, model_name="all-MiniLM-L6-v2"):
     #     print("[INFO] Retrying download...")
     #     model = SentenceTransformer(model_name)
 
-    embedding = model.encode([text], convert_to_numpy=True)[0]
+    embedding = embedding_model.encode([text], convert_to_numpy=True)[0]
     return embedding
 
 def normalize_vector(vec):

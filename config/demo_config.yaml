@@ -1,0 +1,8 @@
+models:
+  - MemoryOS
+  - Memo0
+datasets:
+  - name: locomo10
+    path: /path/to/dataset/locomo10.json
+  - name: longmemeval_s
+    path: /path/to/dataset/longmemeval_s.json

@@ -6,7 +6,7 @@ import os
 import json
 from datetime import datetime
 from importlib import import_module
-
+import argparse
 # from model.MemoryOS.MemoryOS_module import MemoryOSModel
 # from model.memo0.memo_module import Memo0Model
 
@@ -22,13 +22,13 @@ def run_pipeline(models: list, datasets: list):
 
     for model_name in models:
         print(f"\n=== Running model: {model_name} ===")
-        # try:
-        model_module = import_module(f"model.{model_name}.{model_name}_module")
-        model_class_name = f"{model_name}Model"
-        model_instance = getattr(model_module, model_class_name)()
-        # except Exception as e:
-        #     print(f"Failed to load model {model_name}: {e}")
-        #     continue
+        try:
+            model_module = import_module(f"model.{model_name}.{model_name}_module")
+            model_class_name = f"{model_name}Model"
+            model_instance = getattr(model_module, model_class_name)()
+        except Exception as e:
+            print(f"Failed to load model {model_name}: {e}")
+            continue
 
         for dataset in datasets:
             dataset_name = dataset["name"]
@@ -56,10 +56,10 @@ def run_pipeline(models: list, datasets: list):
 
             results = []
 
-            for idx, sample in enumerate(data[:1]):
+            for idx, sample in enumerate(data):
                 sample_id = sample.get("sample_id") or sample.get("question_id") or f"sample_{idx+1}"
-                import pdb
-                pdb.set_trace()
+                # import pdb
+                # pdb.set_trace()
 
                 print(f"[{idx+1}/{len(data)}] Processing sample: {sample_id}")
                 # try:
@@ -85,17 +85,54 @@ def run_pipeline(models: list, datasets: list):
 
             print(f"Dataset {dataset_name} processed. Results saved to {output_file}")
 
+def load_config(config_path: str):
+    if config_path.endswith(".yaml") or config_path.endswith(".yml"):
+        with open(config_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f)
+    elif config_path.endswith(".json"):
+        with open(config_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    else:
+        raise ValueError("Unsupported config file format. Use .yaml/.yml or .json")
+
 if __name__ == "__main__":
-    # configuration
-    models_to_run = ["MemoryOS"]  # Corresponding to model/MemoryOS, model/memo0 "MeMo0"
+    parser = argparse.ArgumentParser(description="Memory Evaluation Pipeline")
+    parser.add_argument(
+        "--models", nargs="+", default=["MemoryOS"],
+        help="e.g., --models MemoryOS Memo0"
+    )
+    parser.add_argument(
+        "--datasets", nargs="+", default=["locomo10"],
+    )
+    parser.add_argument(
+        "--config", type=str, default=None,
+    )
+    args = parser.parse_args()
 
-    # BASE_DIR = os.path.dirname(os.path.abspath(__file__))  
-    # DATA_DIR = os.path.join(BASE_DIR, "dataset")           
-    datasets_to_run = [
-        {"name": "locomo10", "path": os.path.join(os.path.join(DATA_DIR, "locomo10"),"locomo10.json")},
-        # {"name": "longmemeval_s", "path":  os.path.join(DATA_DIR, "longmemeval_s.json")},
-        # {"name": "longmemeval_m", "path":  os.path.join(DATA_DIR, "longmemeval_m.json")},
-        # {"name": "longmemeval_oracle", "path":  os.path.join(DATA_DIR, "longmemeval_oracle.json")},
-    ]
-
+    if args.config:
+        config = load_config(args.config)
+        models_to_run = config.get("models", [])
+        datasets_to_run = config.get("datasets", [])
+    else:
+        models_to_run = args.models
+        datasets_to_run = [
+            {"name": name, "path": os.path.join(DATA_DIR, name, f"{name}.json")}
+            if not name.startswith("longmemeval") else {"name": name, "path": os.path.join(DATA_DIR, "longmemeval", f"{name}.json")} for name in args.datasets
+        ]
+    
     run_pipeline(models=models_to_run, datasets=datasets_to_run)
+
+# if __name__ == "__main__":
+#     # configuration
+#     models_to_run = ["MemoryOS"]  # Corresponding to model/MemoryOS, model/memo0 "MeMo0"
+
+#     # BASE_DIR = os.path.dirname(os.path.abspath(__file__))  
+#     # DATA_DIR = os.path.join(BASE_DIR, "dataset")           
+#     datasets_to_run = [
+#         {"name": "locomo10", "path": os.path.join(os.path.join(DATA_DIR, "locomo10"),"locomo10.json")},
+#         # {"name": "longmemeval_s", "path":  os.path.join(DATA_DIR, "longmemeval_s.json")},
+#         # {"name": "longmemeval_m", "path":  os.path.join(DATA_DIR, "longmemeval_m.json")},
+#         # {"name": "longmemeval_oracle", "path":  os.path.join(DATA_DIR, "longmemeval_oracle.json")},
+#     ]
+
+#     run_pipeline(models=models_to_run, datasets=datasets_to_run)

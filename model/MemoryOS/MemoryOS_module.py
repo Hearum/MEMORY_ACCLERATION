@@ -265,10 +265,10 @@ class MemoryOSModel:
             qa_pairs = sample.get("qa", [])
             speaker_a = sample.get("conversation", {}).get("speaker_a", "User")
             speaker_b = sample.get("conversation", {}).get("speaker_b", "Assistant")
-            mem_dir = f"./results/mem_tmp_{dataset_name}_final"
-            os.makedirs(mem_dir, exist_ok=True)
+            # mem_dir = f"./results/mem_tmp_{dataset_name}_final"
+            # os.makedirs(mem_dir, exist_ok=True)
 
-        elif dataset_name == "longmemeval":
+        elif dataset_name.startswith("longmemeval"):
             processed_dialogs = process_longmemeval_sessions(
                 sample.get("haystack_sessions", []),
                 sample.get("haystack_dates", [])
@@ -282,12 +282,14 @@ class MemoryOSModel:
             }]
             speaker_a = "User"
             speaker_b = "Assistant"
-            mem_dir = f"./results/mem_tmp_{dataset_name}_longmemeval"
-            os.makedirs(mem_dir, exist_ok=True)
+            # mem_dir = f"./results/mem_tmp_{dataset_name}_final"
+            # os.makedirs(mem_dir, exist_ok=True)
 
         else:
             raise ValueError(f"Unsupported dataset_type: {dataset_name}")
-
+        
+        mem_dir = f"./results/mem_tmp_{dataset_name}_final"
+        os.makedirs(mem_dir, exist_ok=True)
         if not processed_dialogs:
             print(f"样本 {sample_id} 没有有效的对话数据，跳过")
             return 
@@ -316,34 +318,39 @@ class MemoryOSModel:
         for qa_idx, qa in enumerate(qa_pairs):
             question = qa.get("question", "")
             original_answer = qa.get("answer") or qa.get("adversarial_answer", "")
-            import pdb
-            pdb.set_trace()
-            meta_data = {
-                "sample_id": sample_id,
-                "speaker_a": speaker_a,
-                "speaker_b": speaker_b,
-                "category": qa.get("category", ""),
-                "question_type": qa.get("question_type", "")
-            }
-            retrieval_result = retrieval_system.retrieve(
-                question,
-                segment_threshold=0.1,
-                page_threshold=0.1,
-                knowledge_threshold=0.1,
-                client=self.client
-            )
-            system_answer, _, _ = generate_system_response_with_meta(
-                question,
-                short_mem,
-                long_mem,
-                retrieval_result["retrieval_queue"],
-                retrieval_result["long_term_knowledge"],
-                self.client,
-                sample_id,
-                speaker_a,
-                speaker_b,
-                meta_data
-            )
+            try:
+                meta_data = {
+                    "sample_id": sample_id,
+                    "speaker_a": speaker_a,
+                    "speaker_b": speaker_b,
+                    "category": qa.get("category", ""),
+                    "question_type": qa.get("question_type", "")
+                }
+                retrieval_result = retrieval_system.retrieve(
+                    question,
+                    segment_threshold=0.1,
+                    page_threshold=0.1,
+                    knowledge_threshold=0.1,
+                    client=self.client
+                )
+                system_answer, _, _ = generate_system_response_with_meta(
+                    question,
+                    short_mem,
+                    long_mem,
+                    retrieval_result["retrieval_queue"],
+                    retrieval_result["long_term_knowledge"],
+                    self.client,
+                    sample_id,
+                    speaker_a,
+                    speaker_b,
+                    meta_data
+                )
+            except Exception as e:
+                print(f"处理样本ID: {sample_id} 时发生错误，已跳过。错误信息: {e}")
+                print(qa)
+                import pdb
+                pdb.set_trace()
+                continue
             results.append({
                 "sample_id": sample_id,
                 "speaker_a": speaker_a,
