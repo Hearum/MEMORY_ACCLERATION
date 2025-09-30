@@ -2,14 +2,15 @@
 #!/bin/bash
 
 MODEL_PATH="/mnt/data/models/Llama-3.2-3B-Instruct"
-PORT=30004
-CUDA_DEVICES=2
+PORT=30012
+CUDA_DEVICES=3
 LOG_DIR="/home/shm/document/MEMORY_ACCLERATION/log"
 MODEL_NAME="MemoryOS"
 DATASETS="longmemeval_m"
 # locomo10
 # longmemeval_s
 # longmemeval_m
+# longmemeval_oracle
 
 mkdir -p "$LOG_DIR"
 
@@ -38,7 +39,11 @@ python -m sglang.launch_server \
   --enable-metrics \
   > "$LOG_FILE" 2>&1 &
 
+SERVER_PID=$!
+echo "SGLang server PID: $SERVER_PID"
+
 echo "Waiting for SGLang server on port $PORT..."
+sleep 10
 while ! nc -z localhost $PORT; do
     sleep 1
 done
@@ -52,4 +57,9 @@ export HF_ENDPOINT=https://hf-mirror.com
 # python pipeline.py --config config.yaml
 python3 /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py \
   --models $MODEL_NAME \
-  --datasets $DATASETS \
+  --datasets $DATASETS 
+
+echo "Stopping SGLang server..."
+kill $SERVER_PID
+wait $SERVER_PID 2>/dev/null
+echo "SGLang server stopped."

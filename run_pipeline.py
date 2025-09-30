@@ -62,8 +62,8 @@ def run_pipeline(models: list, datasets: list):
                 # pdb.set_trace()
 
                 print(f"[{idx+1}/{len(data)}] Processing sample: {sample_id}")
-                # try:
-                model_instance.generate_answer(idx, sample,dataset_name,output_file)
+                try:
+                    model_instance.generate_answer(idx, sample,dataset_name,output_file)
                 # print(f"[DEBUG] Raw model output for {sample_id}:\n{system_answer}")
                 # if system_answer is None:
                 #     continue
@@ -71,10 +71,9 @@ def run_pipeline(models: list, datasets: list):
                 #     "question_id": sample_id,
                 #     "hypothesis": system_answer
                 # })
-                # except Exception as e:
-                #     print(f"Error processing sample {sample_id}: {e}")
-                #     continue
-
+                except Exception as e:
+                    print(f"Error processing sample {sample_id}: {e}")
+                    continue
                 # save
                 # try:
                 #     with open(output_file, "a", encoding="utf-8") as f:

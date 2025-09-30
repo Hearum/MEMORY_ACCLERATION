@@ -45,7 +45,8 @@ def get_embedding(text, model_name="all-MiniLM-L6-v2"):
     #         shutil.rmtree(cache_dir)
     #     print("[INFO] Retrying download...")
     #     model = SentenceTransformer(model_name)
-
+    if text is None:
+        text = ""
     embedding = embedding_model.encode([text], convert_to_numpy=True)[0]
     return embedding
 

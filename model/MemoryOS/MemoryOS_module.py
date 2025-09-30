@@ -290,6 +290,7 @@ class MemoryOSModel:
         
         mem_dir = f"./results/mem_tmp_{dataset_name}_final"
         os.makedirs(mem_dir, exist_ok=True)
+        
         if not processed_dialogs:
             print(f"样本 {sample_id} 没有有效的对话数据，跳过")
             return 

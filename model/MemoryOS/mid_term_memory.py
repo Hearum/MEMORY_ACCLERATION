@@ -143,7 +143,7 @@ class MidTermMemory:
             print(f"中期记忆：尝试合并到会话段 {best_sid}（摘要相似度 {best_sim:.2f}）。")
             session = self.sessions[best_sid]
             session_keywords = set(session.get("summary_keywords", []))
-            new_kw_set = set(new_keywords)
+            new_kw_set = set(new_keywords) if new_keywords is not None else set()
             if session_keywords and new_kw_set:
                 overlap = session_keywords & new_kw_set
                 s_top = 0.5 * (len(overlap)/len(session_keywords) + len(overlap)/len(new_kw_set))
