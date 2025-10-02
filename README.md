@@ -89,39 +89,46 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 ```
 
-```
-python scripts/run_pipeline.py
-```
+We provide a helper script begin.sh to automatically:
 
-Example config inside `run_pipeline.py`:
+- Launch the SGLang local LLM server.
+
+- Set the environment variables for OpenAI-compatible API.
+
+- Run the generation pipeline on the specified models and datasets.
 
 ```
-models_to_run = ["MemoryOS", "MeMo0", "RAG"] ...
-datasets_to_run = [
-{"name": "locomo10", "path": os.path.join(os.path.join(DATA_DIR, "locomo10"),"locomo10.json")},
-# {"name": "longmemeval_s", "path":  os.path.join(DATA_DIR, "longmemeval_s.json")},
-# {"name": "longmemeval_m", "path":  os.path.join(DATA_DIR, "longmemeval_m.json")},
-# {"name": "longmemeval_oracle", "path":  os.path.join(DATA_DIR, "longmemeval_oracle.json")},
-]
+./begin.sh
 ```
+Configuration inside begin.sh:
+
+- MODEL_PATH: path to the local model weights.
+
+- PORT: port for the LLM server.
+
+- CUDA_DEVICES: which GPU(s) to use.
+
+- LOG_DIR: directory to save server logs.
+
+- DATASETS: dataset(s) to evaluate, e.g., locomo10, longmemeval_m.
+
 
 
 
 # evaluate
-
-**locomomo**
-
+## Cache hit rate
+caculate the cache hit rate from your generation sglang log:
 ```
-python evals.py --input_file  --output_file 
-```
-
-**longmemeval**
-
-```
-python3 evaluate_qa.py gpt-4o your_hypothesis_file ../../data/longmemeval_oracle.json
+./scripts/cal_kv_cache.py
 ```
 
 ## Metric
+Our evaluation pipeline supports multiple metrics to comprehensively assess memory-based systems, including F1, BLEU, coverage, accuracy, and LLM-based judgment.
+```
+python ./evaluators/base_evaluator.py --input_file ./results/results.jsonl --dataset_type locomo 
+python ./evaluators/base_evaluator.py --input_file ./results/results.jsonl --dataset_type longmemeval
+```
+
 
 ## Perforom
 
