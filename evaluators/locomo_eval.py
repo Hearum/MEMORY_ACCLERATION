@@ -35,10 +35,19 @@ def calculate_f1(prediction: str, reference: str) -> float:
         f1 = 0
     return f1
 
-def load_data(file_path: str) -> List[Dict]:
-    """Load data from a JSON file."""
-    with open(file_path, 'r', encoding='utf-8') as file:
-        data = json.load(file)
+def load_data(file_path):
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    arrays = re.findall(r'\[.*?\]', content, flags=re.S)
+    
+    data = []
+    for arr in arrays:
+        try:
+            parsed = json.loads(arr)
+            data.extend(parsed)  
+        except json.JSONDecodeError as e:
+            print(f"解析出错，跳过片段: {e}")
+    
     return data
 
 def main(file_path: str):
@@ -67,5 +76,5 @@ def main(file_path: str):
         print(f"Category {category}: Average F1 Score = {avg_f1:.4f}")
 
 if __name__ == "__main__":
-    file_path = "all_loco_results.json"  # 使用main_loco_parse.py生成的文件
+    file_path = "/home/shm/document/MEMORY_ACCLERATION/results/MemoryOS_locomo10_results.jsonl"  # 使用main_loco_parse.py生成的文件
     main(file_path)
