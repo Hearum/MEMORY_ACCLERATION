@@ -22,13 +22,13 @@ def run_pipeline(models: list, datasets: list):
 
     for model_name in models:
         print(f"\n=== Running model: {model_name} ===")
-        try:
-            model_module = import_module(f"model.{model_name}.{model_name}_module")
-            model_class_name = f"{model_name}Model"
-            model_instance = getattr(model_module, model_class_name)()
-        except Exception as e:
-            print(f"Failed to load model {model_name}: {e}")
-            continue
+        # try:
+        model_module = import_module(f"model.{model_name}.{model_name}_module")
+        model_class_name = f"{model_name}Model"
+        model_instance = getattr(model_module, model_class_name)()
+        # except Exception as e:
+        #     print(f"Failed to load model {model_name}: {e}")
+        #     continue
 
         for dataset in datasets:
             dataset_name = dataset["name"]
@@ -62,18 +62,19 @@ def run_pipeline(models: list, datasets: list):
                 # pdb.set_trace()
 
                 print(f"[{idx+1}/{len(data)}] Processing sample: {sample_id}")
-                try:
-                    model_instance.generate_answer(idx, sample,dataset_name,output_file)
-                # print(f"[DEBUG] Raw model output for {sample_id}:\n{system_answer}")
-                # if system_answer is None:
+                model_instance.generate_answer(idx, sample,dataset_name,output_file)
+                # try:
+                #     model_instance.generate_answer(idx, sample,dataset_name,output_file)
+                # # print(f"[DEBUG] Raw model output for {sample_id}:\n{system_answer}")
+                # # if system_answer is None:
+                # #     continue
+                # # results.append({
+                # #     "question_id": sample_id,
+                # #     "hypothesis": system_answer
+                # # })
+                # except Exception as e:
+                #     print(f"Error processing sample {sample_id}: {e}")
                 #     continue
-                # results.append({
-                #     "question_id": sample_id,
-                #     "hypothesis": system_answer
-                # })
-                except Exception as e:
-                    print(f"Error processing sample {sample_id}: {e}")
-                    continue
                 # save
                 # try:
                 #     with open(output_file, "a", encoding="utf-8") as f:
