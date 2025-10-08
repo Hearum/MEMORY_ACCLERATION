@@ -130,4 +130,34 @@ python ./evaluators/base_evaluator.py --input_file ./results/results.jsonl --dat
 
 
 ## Perforom
+### LOCOMO10_Llama-3.2-3B-Instruct_top_k_10
+
+| f1_score/bleu_score/llm_score | Single Hop      | Multi-Hop      | Open Domain    | Temporal       |
+| ----------------------------- | --------------- | -------------- | -------------- | -------------- |
+| MemoryOS                      | 25.3/27.3/60.0  | 26.9/34.5/45.6 | 11.8/17.0/62.0 | 29.8/45.4/63.0 |
+| Memo0                         | 12.3/15.8/32.27 | 11.7/13.5/33.4 | 8.0/7.2/45.6   | 13.3/12.5/32.9 |
+| RAG                           | 6.4/13.4/36.5   | 2.9/8.9/34.2   | 13.2/17.8/54.2 | 8.8/13.4/38.2  |
+
+### longmemeval_m_Llama-3.2-3B-Instruct_top_k_10
+
+|                               | f1_score | bleu_score | llm_score | accuracy |
+| ----------------------------- | -------- | ---------- | --------- | -------- |
+| MemoryOS (longmemeval_m)      | 51.6     | 47.5       | 51.6      | 0.516    |
+| MemoryOS (longmemeval_s)      | 30.9     | 28.5       | 30.9      | 0.41     |
+| MemoryOS (longmemeval_oracle) | 32.5     | 29.5       | 32.5      | 0.442    |
+| RAG (longmemeval_m)           | 15.8     | 17.9       | 21.2      | 0.25     |
+| RAG (longmemeval_s)           | 6.4      | 4.8        | 6.06      | 0.07     |
+| RAG (longmemeval_oracle)      | 13.0     | 9.86       | 13.2      | 0.19     |
+|                               |          |            |           |          |
+
+
+
+### KVcache hit rate
+
+| KVcache hit rate/ Total token | longmemeval_m | longmemeval_s | longmemeval_oracle | LOCOMO10 |
+| ----------------------------- | ------------- | ------------- | ------------------ | -------- |
+| MemoryOS                      | 44.26%        | 45.94%        | 46.32%             | 55.69%   |
+| Memo0                         | -             | -             | -                  | 75.15%   |
+| RAG                           |               |   14.38%     | 16.31%             | 21.26%   |
+
 
