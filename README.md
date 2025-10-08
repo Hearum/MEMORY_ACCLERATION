@@ -36,8 +36,7 @@ memory_eval_pipeline/
 ## dataset
 
 ### LOGOMOMO
-
-Already included in repo under `datasets/locomo10`.
+Download from github [https://github.com/BAI-LAB/MemoryOS/blob/main/eval/locomo10.json]
 
 ### longmemeval
 
