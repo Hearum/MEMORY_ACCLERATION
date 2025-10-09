@@ -1,10 +1,8 @@
 import re
 
-log_path = "/home/shm/document/MEMORY_ACCLERATION/log_file.log"
+log_path = "/home/shm/document/MEMORY_ACCLERATION/log/sglang_simplerag_locomo10_2025-10-08_17-32-17.log"
 
-total_new = 0
-total_cached = 0
-
+rates = []
 with open(log_path, "r") as f:
     for line in f:
         if "Prefill batch." in line:
@@ -12,12 +10,9 @@ with open(log_path, "r") as f:
             if match:
                 new_token = int(match.group(1))
                 cached_token = int(match.group(2))
-                total_new += new_token
-                total_cached += cached_token
+                total = new_token + cached_token
+                if total > 0:
+                    rates.append(cached_token / total)
 
-total_tokens = total_new + total_cached
-kv_hit_rate = total_cached / total_tokens if total_tokens > 0 else 0.0
-
-print(f"Total tokens: {total_tokens}")
-print(f"Total cached tokens: {total_cached}")
-print(f"KV cache hit rate: {kv_hit_rate*100:.2f}%")
+if rates:
+    print(f"Average per-request KV reuse: {sum(rates)/len(rates)*100:.2f}%")

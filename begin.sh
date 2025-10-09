@@ -2,13 +2,13 @@
 #!/bin/bash
 
 MODEL_PATH="/mnt/data/models/Llama-3.2-3B-Instruct"
-PORT=30020
+PORT=30021
 CUDA_DEVICES=2
 LOG_DIR="/home/shm/document/MEMORY_ACCLERATION/log"
-MODEL_NAME="memo0"
+MODEL_NAME="simplerag"
 # MemoryOS
 # memo0
-DATASETS="locomo10"
+DATASETS="longmemeval_s"
 # locomo10
 # longmemeval_s
 # longmemeval_m
@@ -59,6 +59,7 @@ export HF_ENDPOINT=https://hf-mirror.com
 # python3 /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py --models memo0 --datasets locomo10
 # python pipeline.py --config config.yaml
 # python3 /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py --models simplerag --datasets longmemeval_oracle
+# python /home/shm/document/MEMORY_ACCLERATION/evaluators/base_evaluator.py --input_file /home/shm/document/MEMORY_ACCLERATION/results/MemoryOS_longmemeval_oracle_results.jsonl --dataset_type longmemeval
 python3 /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py \
   --models $MODEL_NAME \
   --datasets $DATASETS 
