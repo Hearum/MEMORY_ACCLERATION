@@ -22,7 +22,7 @@ def get_timestamp():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
 class simpleragModel:
-    def __init__(self, chunk_size=500, top_k=1):
+    def __init__(self, chunk_size=500, top_k=10):
         self.chunk_size = chunk_size
         self.top_k = top_k
         self.model = "LLAMA"

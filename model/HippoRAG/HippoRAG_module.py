@@ -9,20 +9,31 @@ import tiktoken
 from tqdm import tqdm
 import pdb
 from hipporag import HippoRAG
-
+import shutil
 
 def get_timestamp():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
-class HippoRAGModel:
-    def __init__(self, chunk_size=500, save_dir='outputs',topk=10):
+def clear_save_(save_dir):
+    # 遍历目录，删除其中的所有文件
+    for root, dirs, files in os.walk(save_dir, topdown=False):
+        for file_name in files:
+            file_path = os.path.join(root, file_name)
+            os.remove(file_path)  # 删除文件
 
-        self.model = "LLAMA"
+def ensure_dir_exists(dir_path):
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)  
+
+class HippoRAGModel:
+    def __init__(self, chunk_size=500, save_dir='outputs_locomo10',topk=10):
+
         self.topk= topk
+        self.save_dir= save_dir
         self.hipporag = HippoRAG(save_dir=save_dir, 
-            llm_model_name='Your LLM Model name',
+            llm_model_name='LLAMA',
             llm_base_url=os.getenv("OPENAI_API_BASE"),
-            embedding_model_name='Your Embedding model name',  
+            embedding_model_name='text-embedding',  
             embedding_base_url='http://localhost:30099/v1')
         
         # self.embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small") #os.getenv("EMBEDDING_MODEL")
@@ -92,41 +103,49 @@ class HippoRAGModel:
             print(f"⚠️ Sample {sample_id} has empty docs, skipped.")
             return
         
-        save_dir = output_file
-
-        self.hipporag.index(docs=docs)
+        # pdb.set_trace()
+        try:
+            self.hipporag.index(docs=docs)
+        except Exception as e:
+            print(e)
+            return
+        
         results = []
 
         # ===== Generate answers =====
         results = []
-        for qa in qa_pairs:
+        questions = [qa.get("question", "") for qa in qa_pairs]
+        original_answers = [qa.get("answer", "") for qa in qa_pairs]
+        
+        # Retrieve step
+        retrieval_results = self.hipporag.retrieve(queries=questions, num_to_retrieve=self.topk)
+
+        # QA step
+        qa_results = self.hipporag.rag_qa(retrieval_results)
+        
+        for qa, system_answer_list in zip(qa_pairs, qa_results):
+            if not system_answer_list:
+                continue
+            pdb.set_trace()
+            system_answer = system_answer_list[0]  # QuerySolution 对象
             question = qa.get("question", "")
             original_answer = qa.get("answer", "")
-
-            # --- Retrieve step ---
-            retrieval_results = self.hipporag.retrieve(queries=[question], num_to_retrieve=self.topk)
-
-            # --- QA step ---
-            qa_results = self.hipporag.rag_qa(retrieval_results)
-            system_answer = qa_results[0] if qa_results else ""
-
-            # 保存检索到的文档，方便评估
-            retrieved_docs = retrieval_results[0] if retrieval_results else []
-
+            
             results.append({
                 "sample_id": sample_id,
                 "speaker_a": speaker_a,
                 "speaker_b": speaker_b,
                 "question": question,
-                "system_answer": system_answer,
+                "system_answer": system_answer.answer,
                 "original_answer": original_answer,
-                # "retrieved_docs": retrieved_docs,  # 新增字段
                 "timestamp": get_timestamp(),
                 **({"category": qa.get("category")} if "category" in qa else {}),
                 **({"question_type": qa.get("question_type")} if "question_type" in qa else {}),
             })
 
         # ===== Step 4: Save results =====
+        clear_save_(self.save_dir)
+        ensure_dir_exists(self.save_dir)
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
         try:
             with open(output_file, "a", encoding="utf-8") as f:

@@ -60,7 +60,6 @@ def run_pipeline(models: list, datasets: list):
                 sample_id = sample.get("sample_id") or sample.get("question_id") or f"sample_{idx+1}"
                 # import pdb
                 # pdb.set_trace()
-
                 print(f"[{idx+1}/{len(data)}] Processing sample: {sample_id}")
                 model_instance.generate_answer(idx, sample,dataset_name,output_file)
                 # try:
