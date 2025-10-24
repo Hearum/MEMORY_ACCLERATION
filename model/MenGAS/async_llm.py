@@ -1,10 +1,11 @@
 import asyncio
 import aiohttp
 from time import sleep
+import os
 
-async def create_completion(session,prompt,model="gpt-4o-mini"):
-    API_KEY = ''
-    BASE_URL = ""
+async def create_completion(session,prompt,model="LLAMA"):
+    API_KEY = os.getenv("OPENAI_API_KEY")
+    BASE_URL = os.getenv("OPENAI_API_BASE")
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
@@ -12,7 +13,7 @@ async def create_completion(session,prompt,model="gpt-4o-mini"):
     retry = 0
     while retry < 5:
         try:
-            async with session.post(url=f"{BASE_URL}chat/completions",
+            async with session.post(url=f"{BASE_URL}",
                 json={
                     "model": model,
                     "max_tokens":4000,

@@ -14,22 +14,22 @@ class DynamicUpdate:
             return False
             
         prompt = """Determine if these two conversation pages are continuous (true continuation without topic shift).
-Return ONLY "true" or "false".
+        Return ONLY "true" or "false".
 
-Previous Page:
-User: {prev_user}
-Assistant: {prev_agent}
+        Previous Page:
+        User: {prev_user}
+        Assistant: {prev_agent}
 
-Current Page:
-User: {curr_user}
-Assistant: {curr_agent}
+        Current Page:
+        User: {curr_user}
+        Assistant: {curr_agent}
 
-Continuous?""".format(
-            prev_user=previous_page.get("user_input", ""),
-            prev_agent=previous_page.get("agent_response", ""),
-            curr_user=current_page.get("user_input", ""),
-            curr_agent=current_page.get("agent_response", "")
-        )
+        Continuous?""".format(
+                    prev_user=previous_page.get("user_input", ""),
+                    prev_agent=previous_page.get("agent_response", ""),
+                    curr_user=current_page.get("user_input", ""),
+                    curr_agent=current_page.get("agent_response", "")
+                )
         
         messages = [
             {"role": "system", "content": "You are a conversation continuity detector. Return ONLY 'true' or 'false'."},
@@ -40,11 +40,13 @@ Continuous?""".format(
             model="Qwen",
             messages=messages,
             temperature=0.0,
-            max_tokens=10
+            max_tokens=10,
+            tag="continuity"
         )
         
         return response.strip().lower() == "true"
 
+    # 需要统计的方法1
     def _generate_meta_info(self, last_page_meta, current_page):
         """
         基于上一页的meta-info和当前页内容生成新的meta-info
@@ -56,34 +58,35 @@ Continuous?""".format(
         
         prompt = """Update the conversation meta-summary by incorporating the new dialogue while maintaining continuity.
         
-    Guidelines:
-    1. Start from the previous meta-summary (if exists)
-    2. Add/update information based on the new dialogue
-    3. Keep it concise (1-2 sentences max)
-    4. Maintain context coherence
+        Guidelines:
+        1. Start from the previous meta-summary (if exists)
+        2. Add/update information based on the new dialogue
+        3. Keep it concise (1-2 sentences max)
+        4. Maintain context coherence
 
-    Previous Meta-summary: {last_meta}
-    New Dialogue:
-    {new_dialogue}
+        Previous Meta-summary: {last_meta}
+        New Dialogue:
+        {new_dialogue}
 
-    Updated Meta-summary:""".format(
-            last_meta=last_page_meta if last_page_meta else "None",
-            new_dialogue=current_conversation
-        )
-        
+        Updated Meta-summary:""".format(
+                last_meta=last_page_meta if last_page_meta else "None",
+                new_dialogue=current_conversation
+            )
+            
         messages = [
             {"role": "system", "content": """You are a conversation meta-summary updater. Your task is to:
-    1. Preserve relevant context from previous meta-summary
-    2. Integrate new information from current dialogue
-    3. Output ONLY the updated summary (no explanations)"""},
-            {"role": "user", "content": prompt}
+        1. Preserve relevant context from previous meta-summary
+        2. Integrate new information from current dialogue
+        3. Output ONLY the updated summary (no explanations)"""},
+                {"role": "user", "content": prompt}
         ]
         
         return self.client.chat_completion(
             model="Qwen",
             messages=messages,
             temperature=0.3,
-            max_tokens=100
+            max_tokens=100,
+            tag="meta_update"
         ).strip()
 
     def _update_connected_pages(self, page_id, new_meta_info):
@@ -145,7 +148,7 @@ Continuous?""".format(
             }
             
             # 连续性判断
-            is_continuous = self._is_conversation_continuing(self.last_evicted_page, page)
+            is_continuous = self._is_conversation_continuing(self.last_evicted_page, page) # 
             if is_continuous and self.last_evicted_page:
                 page["pre_page"] = self.last_evicted_page["page_id"]
                 self.last_evicted_page["next_page"] = page["page_id"]

@@ -22,16 +22,16 @@ client = OpenAIClient(
     api_key=os.environ.get("OPENAI_API_KEY"),
     base_url=os.environ.get("OPENAI_API_BASE")
 )
-
+'''
+如果其“热度”超过阈值，就触发：
+- 调用 gpt_personality_analysis 对未分析的对话段落进行分析。
+- 得到新的 profile用户画像、private facts私有信息、assistant knowledge。
+- 如果已存在旧画像，则调用 gpt_update_profile 融合更新。
+- 将私有事实逐条存入长期记忆；助手知识也加入。
+- 重置该 segment 的热度指标，避免重复分析。
+'''
 def update_user_profile_from_top_segment(mid_mem, long_mem, sample_id, client):
-    '''
-    如果其“热度”超过阈值，就触发：
-    - 调用 gpt_personality_analysis 对未分析的对话段落进行分析。
-    - 得到新的 profile用户画像、private facts私有信息、assistant knowledge。
-    - 如果已存在旧画像，则调用 gpt_update_profile 融合更新。
-    - 将私有事实逐条存入长期记忆；助手知识也加入。
-    - 重置该 segment 的热度指标，避免重复分析。
-    '''
+
     if not mid_mem.heap:
         return
     
@@ -50,6 +50,7 @@ def update_user_profile_from_top_segment(mid_mem, long_mem, sample_id, client):
             
             old_profile = long_mem.get_raw_user_profile(sample_id)
             
+            # 让GPT生成用户画像
             result = gpt_personality_analysis(un_analyzed, client)
             new_profile = result["profile"]
             new_private = result["private"]
@@ -84,7 +85,7 @@ def update_user_profile_from_top_segment(mid_mem, long_mem, sample_id, client):
             print(f"Update complete: Segment {sid} heat has been reset.")
 
 # 输入：用户问题、短/长记忆、检索结果、知识、说话人信息。
-def generate_system_response_with_meta(query, short_mem, long_mem, retrieval_queue, long_konwledge, client, sample_id, speaker_a, speaker_b, meta_data):
+def generate_system_response_with_meta(query, short_mem, long_mem, retrieval_queue, long_konwledge, client, sample_id, speaker_a, speaker_b, meta_data,):
     '''
     step:
     1.从短期记忆构造 近期对话文本。
@@ -151,7 +152,7 @@ def generate_system_response_with_meta(query, short_mem, long_mem, retrieval_que
         {"role": "user", "content": user_prompt}
     ]
     
-    response = client.chat_completion(model="Qwen", messages=messages, temperature=0.7, max_tokens=2000)
+    response = client.chat_completion(model="Qwen", messages=messages, temperature=0.7, max_tokens=2000,tag="final_question")
     return response, system_prompt, user_prompt
 
 # 对话预处理
@@ -307,6 +308,15 @@ class MemoryOSModel:
         retrieval_system = RetrievalAndAnswer(short_mem, mid_mem, long_mem, dynamic_updater, queue_capacity=10)
 
         # Store conversation history in memory system
+        '''
+        for each dialog in processed_dialogs:
+            ↓
+            写入短期记忆 short_mem
+            ↓
+            如果短期记忆满了 → 动态迁移到中期记忆 mid_mem
+            ↓
+            用 mid_mem 的高层摘要更新长期记忆 long_mem[用户画像、偏好]
+        '''
         for dialog in processed_dialogs:
             short_mem.add_qa_pair(dialog)
             if short_mem.is_full():
@@ -344,7 +354,8 @@ class MemoryOSModel:
                     sample_id,
                     speaker_a,
                     speaker_b,
-                    meta_data
+                    meta_data,
+                    client
                 )
             except Exception as e:
                 print(f"处理样本ID: {sample_id} 时发生错误，已跳过。错误信息: {e}")

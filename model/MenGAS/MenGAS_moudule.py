@@ -18,7 +18,7 @@ import numpy as np
 from src.construct.construct_emb import emb_rawdata
 from src.construct.construct_asso import construct_asso
 from eval_utils import evaluate_retrieval
-
+import asyncio
 
 PROMPT_G = """
 You are an intelligent dialog bot. You will be shown History Dialogs. Please read, memorize, and understand the given Dialogs, then generate one concise, coherent and helpful response for the Question.
@@ -55,15 +55,13 @@ def ensure_dir_exists(dir_path):
         os.makedirs(dir_path)  
 
 class MenGASModel:
-    def __init__(self, dataset, retriever, method, num_seednodes=15, mem_threshold=30, n_components=2, damping=0.1, temp=0.1):
+    def __init__(self, all_emb, method='memgas', dataset='longmemeval_m', retriever='contriever', covid2graph=None, args=None):
+        self.all_emb = all_emb  # list of dict, 每个 dict 包含 conversation_id, turns, sessions, summarys, keywords, hybrid, questions
+        self.method = method
         self.dataset = dataset
         self.retriever = retriever
-        self.method = method
-        self.num_seednodes = num_seednodes
-        self.mem_threshold = mem_threshold
-        self.n_components = n_components
-        self.damping = damping
-        self.temp = temp
+        self.covid2graph = covid2graph
+        self.args = args
 
         # Load embeddings
         emb_path = f'../../data/process_embs/{dataset}-{retriever}-emb.pt'
@@ -74,14 +72,14 @@ class MenGASModel:
 
         # For memgas: construct graph
         if method == "memgas":
-            graph_path = f"../../graph_cache/graph-{dataset}-{retriever}-{mem_threshold}-{n_components}.pt"
+            graph_path = f"../../graph_cache/graph-{dataset}-{retriever}.pt"
             if os.path.exists(graph_path):
                 self.covid2graph = torch.load(graph_path)
             else:
                 self.covid2graph = construct_asso(self)
 
     @staticmethod
-    def run_ppr(g, reset_prob, damping):
+    def run_ppr(self, g, reset_prob, damping):
         reset_prob = np.where(np.isnan(reset_prob) | (reset_prob < 0), 0, reset_prob)
         pagerank_scores = g.personalized_pagerank(
             damping=damping,
@@ -92,7 +90,7 @@ class MenGASModel:
         return pagerank_scores
 
     @staticmethod
-    def multi_granularity_routing(query_emb, granular_embeddings, temp):
+    def multi_granularity_routing(self,query_emb, granular_embeddings, temp):
         entropies = []
         for emb in granular_embeddings:
             similarity = (query_emb @ emb.T).squeeze()
@@ -104,17 +102,12 @@ class MenGASModel:
         soft_router_weights /= soft_router_weights.sum()
         return soft_router_weights
 
-    def retrieve_for_sample(self, entry, emb):
-        """
-        对单个样本进行检索
-        entry: 一个样本的原始数据 dict
-        emb: 对应的 embedding dict
-        返回：
-            ranked_session_ids: list
-        """
+    def retrieve_for_sample(self, sample, sample_emb, topk=3):
+        entry = sample
+        emb = sample_emb
         results = []
         for qa_one, q_emb in zip(entry['qa'], emb['questions']):
-            # Turn-level mean embeddings
+            # Turn embeddings
             turn_num_each_session = [len(sess) for sess in entry['sessions']]
             turn_embeddings = []
             start_idx = 0
@@ -128,7 +121,7 @@ class MenGASModel:
                 start_idx += num_turns
             turn_embeddings = torch.stack(turn_embeddings)
 
-            # Single granularity
+            # Score computation
             if self.method == 'session_level':
                 scores = (q_emb @ emb['sessions'].T).squeeze()
             elif self.method == 'keyword_level':
@@ -139,11 +132,9 @@ class MenGASModel:
                 scores = (q_emb @ emb['hybrid'].T).squeeze()
             elif self.method == 'turn_level':
                 scores = (q_emb @ turn_embeddings.T).squeeze()
-            
-            # Multi-granularity: memgas
             elif self.method == 'memgas':
                 emb_list = [emb['sessions'], turn_embeddings, emb['summarys'], emb['keywords']]
-                soft_router_weights = self.multi_granularity_routing(q_emb, emb_list, self.temp)
+                soft_router_weights = self.multi_granularity_routing(self.args, q_emb, emb_list)
                 emb_list = [w * v for w, v in zip(soft_router_weights, emb_list)]
                 multi_gran_emb = []
                 for i in range(emb['sessions'].size(0)):
@@ -152,23 +143,44 @@ class MenGASModel:
                 multi_gran_emb = torch.stack(multi_gran_emb, dim=0)
                 scores = (q_emb @ multi_gran_emb.T).squeeze()
 
-                # topk threshold + PPR
-                topk_values, _ = torch.topk(scores, self.num_seednodes)
+                # 过滤 top-N seeds
+                topk_values, _ = torch.topk(scores, self.args.num_seednodes)
                 scores[scores < topk_values[-1]] = 0
-                scores = self.run_ppr(self.covid2graph[entry['conversation_id']], scores, self.damping)
-                # sum scores over 4 chunks
+                scores = self.run_ppr(self.covid2graph[entry['conversation_id']], scores, self.args.damping)
+                # 按 4 turns 聚合
                 scores = [sum(scores[i:i+4]) for i in range(0, len(scores), 4)]
+                scores = torch.tensor(scores)
+            
+            rankings = scores.argsort(descending=True)
 
-            rankings = torch.tensor(scores).argsort(descending=True)
-            ranked_session_ids = [entry['sessions_ids'][rid] for rid in rankings]
-            results.append({
-                "question": qa_one['question'],
-                "ranked_session_ids": ranked_session_ids
-            })
+            # 返回 topk session 的多粒度信息
+            ranked_items = []
+            for rid in rankings[:topk]:
+                ranked_items.append({
+                    'corpus_id': entry['sessions_ids'][rid],
+                    'timestamp': entry['sessions_dates'][rid],
+                    'session_text': entry['sessions'][rid],
+                    'summary_text': emb['summarys'][rid] if 'summarys' in emb else "",
+                    'keyword_text': emb['keywords'][rid] if 'keywords' in emb else ""
+                })
+
+            cur_result = {
+                'conversation_id': entry['conversation_id'],
+                'question_type': qa_one.get('question_type', ''),
+                'question': qa_one['question'],
+                'answer': qa_one['answer'],
+                'question_date': qa_one.get('question_date', ''),
+                'retrieval_results': {
+                    'ranked_items': ranked_items,
+                    'metrics': {}  # 可以根据需要在这里填 session/turn 的 recall
+                }
+            }
+
+            results.append(cur_result)
         return results
 
 
-    def generate_answer(self, idx, sample, dataset_name, output_file, topk=3, llm_model=None, conv2summary=None, conv2keyword=None):
+    def generate_answer(self, idx, sample, dataset_name, output_file):
             """
             对单个样本生成答案，并保存结果
             """
@@ -230,9 +242,9 @@ class MenGASModel:
                 return
 
             retrieval_results = self.retrieve_for_sample(sample, emb)[0]  # 取第一个 QA 对应的结果
-            top_sessions = retrieval_results['ranked_session_ids'][:topk]
+            top_sessions = retrieval_results['ranked_session_ids']
 
-            # Step 3: 构建 multigran prompt
+            # 构建 multigran prompt
             retrieved_texts = ""
             for sess_id in top_sessions:
                 session_text = {**sample.get("sessions", {})}.get(sess_id, "")  # 单粒度内容
@@ -240,7 +252,7 @@ class MenGASModel:
                 keyword_text = conv2keyword[sample['conversation_id']][sess_id] if conv2keyword else ""
                 retrieved_texts += f"\n### Session ID: {sess_id}\nSession Content:\n{session_text}\n\nSession Summary:\n{summary_text}\nSession Keyword:\n{keyword_text}\n"
 
-            # Step 4: 用 Multigran prompt 生成中间文本
+            # 中间文本
             prompt_multigran = PROMPT_Multigran.format(
                 retrieved_texts=retrieved_texts,
                 question=qa_pairs[0]['question'],
@@ -249,7 +261,7 @@ class MenGASModel:
             async_responses = asyncio.run(run_async([prompt_multigran], llm_model=llm_model))
             filtered_text = async_responses[0]
 
-            # Step 5: 用 G prompt 生成最终答案
+            # 生成最终答案
             retrieved_texts_final = ""
             for sess_id in top_sessions:
                 retrieved_texts_final += f"\n### Session ID: {sess_id}\nSession Content:\n{filtered_text}\n"

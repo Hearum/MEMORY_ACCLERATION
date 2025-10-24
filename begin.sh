@@ -2,14 +2,14 @@
 #!/bin/bash
 
 MODEL_PATH="/mnt/data/models/Llama-3.2-3B-Instruct"
-PORT=30011
-CUDA_DEVICES=1
+PORT=30078
+CUDA_DEVICES=3
 LOG_DIR="/home/shm/document/MEMORY_ACCLERATION/log"
-MODEL_NAME="HippoRAG"
+MODEL_NAME="MemoryOS"
 # MemoryOS
 # memo0
 # HippoRAG
-DATASETS="longmemeval_s"
+DATASETS="longmemeval_oracle"
 # locomo10
 # longmemeval_s
 # longmemeval_m

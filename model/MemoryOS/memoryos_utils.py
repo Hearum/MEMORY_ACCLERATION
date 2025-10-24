@@ -57,14 +57,93 @@ def normalize_vector(vec):
         return vec
     return vec / norm
 
+# class OpenAIClient:
+#     def __init__(self, api_key, base_url):
+#         self.api_key = api_key
+#         self.base_url = base_url
+#         openai.api_key = self.api_key
+#         openai.api_base = self.base_url
+
+#     def chat_completion(self, model, messages, temperature=0.7, max_tokens=2000):
+
+#         response = gpt_client.chat.completions.create(
+#             model=model,
+#             messages=messages,
+#             temperature=temperature,
+#             max_tokens=max_tokens
+#         )
+#         return response.choices[0].message.content.strip()
+import os, json
+from datetime import datetime
+from threading import Lock
+import openai
+import tiktoken
+
 class OpenAIClient:
-    def __init__(self, api_key, base_url):
+    def __init__(self, api_key, base_url, model="gpt-4o-mini", log_path="/home/shm/document/log/long_o_kv_reuse_stats.json"):
         self.api_key = api_key
         self.base_url = base_url
-        openai.api_key = self.api_key
-        openai.api_base = self.base_url
+        self.model = model
 
-    def chat_completion(self, model, messages, temperature=0.7, max_tokens=2000):
+        self.tokenizer = tiktoken.get_encoding("cl100k_base")
+        self.log_path = log_path
+        self.lock = Lock()  # 确保多线程写文件安全
+
+        # 初始化文件
+        if not os.path.exists(self.log_path):
+            with open(self.log_path, "w", encoding="utf-8") as f:
+                json.dump({
+                    "total": 0,  # 所有LLM输入token总数
+                    "reuse_continuity": 0,  # 连续对话复用
+                    "reuse_meta_summary": 0,  # 摘要生成阶段
+                    "reuse_meta_update": 0,  # Meta融合阶段
+                    "reuse_profile_merge": 0,  # 用户画像合并
+                    "reuse_analysis": 0,  # 各类分析模块
+                    "key_word": 0, 
+                    "theme":0,
+                    "personality_analysis":0,
+                    "final_question":0,
+                    "last_update": None
+                }, f, indent=2)
+
+    def count_tokens(self, messages):
+        total = 0
+        for msg in messages:
+            tokens = self.tokenizer.encode(msg["content"])
+            total += len(tokens)
+        return total
+
+    def _update_log(self, tag, total_tokens):
+        with self.lock:
+            with open(self.log_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            data["total"] += total_tokens
+            if tag == "continuity":
+                data["reuse_continuity"] += total_tokens
+            elif tag == "meta_summary":
+                data["reuse_meta_summary"] += total_tokens
+            elif tag == "meta_update":
+                data["reuse_meta_update"] += total_tokens
+            elif tag == "profile_merge":
+                data["reuse_profile_merge"] += total_tokens
+            elif tag in ("analysis", "user_analysis", "assistant_analysis"):
+                data["reuse_analysis"] += total_tokens
+            elif tag == "key_word":
+                    data["key_word"] += total_tokens
+            elif tag == "theme":
+                    data["theme"] += total_tokens
+            elif tag == "personality_analysis":
+                    data["personality_analysis"] += total_tokens
+            elif tag == "final_question":
+                    data["final_question"] += total_tokens
+            data["last_update"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            with open(self.log_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+
+    def chat_completion(self, model=None, messages=None, temperature=0.7, max_tokens=2000, tag=None):
+        model = model or self.model
+        total_tokens = self.count_tokens(messages)
+        self._update_log(tag, total_tokens)
 
         response = gpt_client.chat.completions.create(
             model=model,
@@ -73,9 +152,45 @@ class OpenAIClient:
             max_tokens=max_tokens
         )
         return response.choices[0].message.content.strip()
+        # return response.choices[0].message.content.strip()
 
-def gpt_generate_answer(prompt, messages, client):
-    return client.chat_completion(model="Qwen", messages=messages, temperature=0.7, max_tokens=2000)
+    def get_reuse_report(self):
+        with open(self.log_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        total = data["total"]
+        t1 = data["reuse_continuity"]
+        t2 = data["reuse_meta_summary"]
+        t3 = data["reuse_meta_update"]
+        report = {
+            "Total tokens": total,
+            "Continuity reuse": f"{t1} ({t1/total:.2%})" if total > 0 else "N/A",
+            "Meta summary reuse": f"{t2} ({t2/total:.2%})" if total > 0 else "N/A",
+            "Meta update reuse": f"{t3} ({t3/total:.2%})" if total > 0 else "N/A",
+            "Overall reusable": f"{(t1+t2+t3)/total:.2%}" if total > 0 else "N/A",
+            "Last update": data.get("last_update", "N/A")
+        }
+        total = data["total"]
+        if total == 0:
+            return {"message": "No LLM calls recorded yet."}
+
+        def fmt(x):
+            return f"{x} ({x/total:.2%})"
+
+        report = {
+            "Total tokens": total,
+            "Continuity reuse": fmt(data["reuse_continuity"]),
+            "Meta summary reuse": fmt(data["reuse_meta_summary"]),
+            "Meta update reuse": fmt(data["reuse_meta_update"]),
+            "Profile merge reuse": fmt(data["reuse_profile_merge"]),
+            "Analysis reuse": fmt(data["reuse_analysis"]),
+            # "Overall reusable (potential)": f"{(data['reuse_continuity'] + data['reuse_meta_summary'] + data['reuse_meta_update'] + data['reuse_profile_merge'] + data['reuse_analysis']) / total:.2%}",
+            "Last update": data["last_update"]
+        }
+        return report
+    
+def gpt_generate_answer(prompt, messages, client,tag=None):
+    return client.chat_completion(model="Qwen", messages=messages, temperature=0.7, max_tokens=2000,tag=tag)
 
 def analyze_assistant_knowledge(dialogs, client):
     """
@@ -127,7 +242,7 @@ Conversation:
     ]
 
     print("Analyzing assistant knowledge...")
-    result = gpt_generate_answer(prompt, messages, client)
+    result = gpt_generate_answer(prompt, messages, client,tag="analysis")
     
     # Parse output
     assistant_knowledge = result.replace("【Assistant Knowledge】", "").strip()
@@ -143,7 +258,7 @@ def gpt_summarize(dialogs, client):
         {"role": "user", "content": prompt}
     ]
     print("调用 GPT 生成主题摘要...")
-    return gpt_generate_answer(prompt, messages, client)
+    return gpt_generate_answer(prompt, messages, client,tag="meta_summary")
 
 def gpt_generate_multi_summary(text, client):
     """
@@ -165,7 +280,7 @@ def gpt_generate_multi_summary(text, client):
         {"role": "user", "content": prompt}
     ]
     print("调用 GPT 生成多子主题摘要...")
-    response_text = gpt_generate_answer(prompt, messages, client)
+    response_text = gpt_generate_answer(prompt, messages, client,tag="meta_summary")
     import json
     try:
         summaries = json.loads(response_text)
@@ -275,47 +390,48 @@ def gpt_personality_analysis(dialogs, client):
     conversation = "\n".join([f"User: {d['user_input']}\nAssistant: {d['agent_response']}\nTime:{d['timestamp']}" for d in dialogs])
 
     prompt = """
-# Personality and User Data Analysis Task
-Analyze the conversation and output in EXACTLY this format:
+    # Personality and User Data Analysis Task
+    Analyze the conversation and output in EXACTLY this format:
 
-【User Profile】
-1. Core Psychological Traits:
-   - [Trait]: [Positive/Negative/Neutral] (Evidence)
-   - (Max 5 most prominent traits)
+    【User Profile】
+    1. Core Psychological Traits:
+    - [Trait]: [Positive/Negative/Neutral] (Evidence)
+    - (Max 5 most prominent traits)
 
-2. Content Preferences:
-   - [Topic]: [Like/Dislike/Neutral] (Evidence)
-   - (Max 5 strongest preferences)
+    2. Content Preferences:
+    - [Topic]: [Like/Dislike/Neutral] (Evidence)
+    - (Max 5 strongest preferences)
 
-3. Interaction Style:
-   - [Style]: [Preference] (Evidence)
-   - (e.g., Direct/Indirect, Detailed/Concise)
+    3. Interaction Style:
+    - [Style]: [Preference] (Evidence)
+    - (e.g., Direct/Indirect, Detailed/Concise)
 
-4. Value Alignment:
-   - [Value]: [Strong/Weak] (Evidence)
-   - (e.g., Honesty, Helpfulness)
+    4. Value Alignment:
+    - [Value]: [Strong/Weak] (Evidence)
+    - (e.g., Honesty, Helpfulness)
 
-【User Data】
-- [Fact 1]: [Details] (e.g., "User mentioned visiting a park on April 1st, 2025 in New York.")
-- [Fact 2]: [Details] (e.g., "User likes pizza, enjoys sci-fi movies, and dislikes rainy weather.")
-- (Include events, dates, locations, preferences, or other general or private information explicitly mentioned in the conversation. If none, write "None.")
+    【User Data】
+    - [Fact 1]: [Details] (e.g., "User mentioned visiting a park on April 1st, 2025 in New York.")
+    - [Fact 2]: [Details] (e.g., "User likes pizza, enjoys sci-fi movies, and dislikes rainy weather.")
+    - (Include events, dates, locations, preferences, or other general or private information explicitly mentioned in the conversation. If none, write "None.")
 
-Conversation:
-""" + conversation
+    Conversation:
+    """ + conversation
+
     messages = [
-        {
-            "role": "system",
-            "content": """You are a personality and user data analysis engine. Rules:
-1. Extract ONLY observable traits and data with direct evidence.
-2. Include general user data such as events, dates, locations, and preferences.
-3. Use concise and factual statements.
-4. If no relevant information is found, output "None"."""
-        },
-        {"role": "user", "content": prompt}
-    ]
+            {
+                "role": "system",
+                "content": """You are a personality and user data analysis engine. Rules:
+    1. Extract ONLY observable traits and data with direct evidence.
+    2. Include general user data such as events, dates, locations, and preferences.
+    3. Use concise and factual statements.
+    4. If no relevant information is found, output "None"."""
+            },
+            {"role": "user", "content": prompt}
+        ]
 
     print("Running personality and user data analysis...")
-    result = gpt_generate_answer(prompt, messages, client)
+    result = gpt_generate_answer(prompt, messages, client,tag="personality_analysis")
     
     # Parse output
     profile, user_data = result.split("【User Data】") if "【User Data】" in result else (result, "None")
@@ -378,7 +494,7 @@ The generated content should not exceed 1500 words
     ]
 
     print("Updating user profile dynamically...")
-    return gpt_generate_answer(prompt, messages, client)
+    return gpt_generate_answer(prompt, messages, client,tag="profile_merge")
 
 def gpt_extract_theme(answer_text, client):
     prompt = f"请从以下回答中提取主题总结，并以【主题提取】：开头输出：\n{answer_text}\n"
@@ -387,7 +503,7 @@ def gpt_extract_theme(answer_text, client):
         {"role": "user", "content": prompt}
     ]
     print("调用 GPT 提取主题总结...")
-    return gpt_generate_answer(prompt, messages, client)
+    return gpt_generate_answer(prompt, messages, client,tag="theme")
 
 def llm_extract_keywords(text, client):
     prompt = "Please extract the keywords of the conversation topic from the following dialogue, separated by commas, and do not exceed three:\n" + text
@@ -396,7 +512,7 @@ def llm_extract_keywords(text, client):
         {"role": "user", "content": prompt}
     ]
     print("调用 GPT 提取关键词...")
-    keywords_text =gpt_generate_answer(prompt, messages, client)
+    keywords_text =gpt_generate_answer(prompt, messages, client,tag="key_word")
     keywords = [w.strip() for w in keywords_text.split(",") if w.strip()]
     return set(keywords)
 

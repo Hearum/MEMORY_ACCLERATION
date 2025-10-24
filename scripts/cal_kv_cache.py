@@ -1,6 +1,6 @@
 import re
 
-log_path = "/home/shm/document/MEMORY_ACCLERATION/log/sglang_simplerag_locomo10_2025-10-08_17-32-17.log"
+log_path = "/home/shm/document/MEMORY_ACCLERATION/log/sglang_MemoryOS_locomo10_2025-10-23_21-55-29.log"
 
 rates = []
 with open(log_path, "r") as f:

@@ -13,6 +13,12 @@ client = OpenAIClient(
     base_url=os.environ.get("OPENAI_API_BASE")
 )
 
+'''
+- 生成摘要向量与关键词集
+- 计算与现有会话摘要的余弦相似度
+- 若高于阈值则合并，否则新建会话段
+- 更新该会话段的交互数与热度
+'''
 def compute_recency(last_visit_time, tau=24):
     from datetime import datetime
     fmt = "%Y-%m-%d %H:%M:%S"
