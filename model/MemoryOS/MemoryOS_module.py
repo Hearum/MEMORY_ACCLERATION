@@ -86,15 +86,7 @@ def update_user_profile_from_top_segment(mid_mem, long_mem, sample_id, client):
 
 # 输入：用户问题、短/长记忆、检索结果、知识、说话人信息。
 def generate_system_response_with_meta(query, short_mem, long_mem, retrieval_queue, long_konwledge, client, sample_id, speaker_a, speaker_b, meta_data,):
-    '''
-    step:
-    1.从短期记忆构造 近期对话文本。
-    2.从检索结果构造 历史记忆片段。
-    3.从长期记忆取 用户画像、助手知识。
-    4.替换掉 user 和 assistant 的字样，改为具体 speaker_a / speaker_b。
-    5.组织成 system_prompt角色设定+回答规则和 user_prompt具体上下文+问题。
-    6.调用 GPT API (原文这里用的是Qwen,我们改成ds) 生成答案。
-    '''
+
     history = short_mem.get_all()
     history_text = "\n".join([
         f"{speaker_a}: {qa.get('user_input', '')}\n{speaker_b}: {qa.get('agent_response', '')}\nTime: ({qa.get('timestamp', '')})" 
@@ -357,6 +349,8 @@ class MemoryOSModel:
                     meta_data,
                     client
                 )
+                import pdb
+                pdb.set_trace()
             except Exception as e:
                 print(f"处理样本ID: {sample_id} 时发生错误，已跳过。错误信息: {e}")
                 print(qa)

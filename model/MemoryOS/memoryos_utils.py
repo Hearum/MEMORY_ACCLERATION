@@ -80,7 +80,7 @@ import openai
 import tiktoken
 
 class OpenAIClient:
-    def __init__(self, api_key, base_url, model="gpt-4o-mini", log_path="/home/shm/document/log/long_o_kv_reuse_stats.json"):
+    def __init__(self, api_key, base_url, model="gpt-4o-mini", log_path="/home/shm/document/log/prompt_cal_log_m.json"):
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
@@ -94,6 +94,7 @@ class OpenAIClient:
             with open(self.log_path, "w", encoding="utf-8") as f:
                 json.dump({
                     "total": 0,  # 所有LLM输入token总数
+                    "total_query": 0,  
                     "reuse_continuity": 0,  # 连续对话复用
                     "reuse_meta_summary": 0,  # 摘要生成阶段
                     "reuse_meta_update": 0,  # Meta融合阶段
@@ -102,7 +103,7 @@ class OpenAIClient:
                     "key_word": 0, 
                     "theme":0,
                     "personality_analysis":0,
-                    "final_question":0,
+                    "final_question": 0,
                     "last_update": None
                 }, f, indent=2)
 
@@ -118,6 +119,8 @@ class OpenAIClient:
             with open(self.log_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             data["total"] += total_tokens
+            data["total_query"] += 1
+
             if tag == "continuity":
                 data["reuse_continuity"] += total_tokens
             elif tag == "meta_summary":
@@ -126,24 +129,47 @@ class OpenAIClient:
                 data["reuse_meta_update"] += total_tokens
             elif tag == "profile_merge":
                 data["reuse_profile_merge"] += total_tokens
+
             elif tag in ("analysis", "user_analysis", "assistant_analysis"):
-                data["reuse_analysis"] += total_tokens
+                data["reuse_analysis"] += total_tokens-258
+
             elif tag == "key_word":
-                    data["key_word"] += total_tokens
+                    data["key_word"] += total_tokens-53
+
             elif tag == "theme":
                     data["theme"] += total_tokens
+
             elif tag == "personality_analysis":
                     data["personality_analysis"] += total_tokens
+
             elif tag == "final_question":
-                    data["final_question"] += total_tokens
+                    data["final_question"] += total_tokens-344
+        elif tag == "final_question":  # 确保这里有处理 final_question
+            data["final_question"] += total_tokens
             data["last_update"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             with open(self.log_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
 
+
+    def _log_request_content(self, messages):
+        with self.lock:
+            log_path="/home/shm/document/log/log_m_all_query.json"
+            with open(log_path, "a", encoding="utf-8") as f:
+                entry = {
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "messages": []
+                }
+                for msg in messages:
+                    text = msg["content"]
+                    length = len(self.tokenizer.encode(text))
+                    entry["messages"].append({"text": text, "length": length})
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+                
     def chat_completion(self, model=None, messages=None, temperature=0.7, max_tokens=2000, tag=None):
         model = model or self.model
         total_tokens = self.count_tokens(messages)
         self._update_log(tag, total_tokens)
+        self._log_request_content(messages) 
 
         response = gpt_client.chat.completions.create(
             model=model,
