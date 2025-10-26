@@ -36,12 +36,28 @@ class DynamicUpdate:
             {"role": "user", "content": prompt}
         ]
         
+        temp_prompt = """Determine if these two conversation pages are continuous (true continuation without topic shift).
+        Return ONLY "true" or "false".
+        Previous Page:
+        User: 
+        Assistant: 
+        Current Page:
+        User: 
+        Assistant: 
+        Continuous?"""
+
+        template_messages = [
+            {"role": "system", "content": "You are a conversation continuity detector. Return ONLY 'true' or 'false'."},
+            {"role": "user", "content": temp_prompt}
+        ]
+        
         response = self.client.chat_completion(
             model="Qwen",
             messages=messages,
             temperature=0.0,
             max_tokens=10,
-            tag="continuity"
+            tag="continuity",
+            template_messages=template_messages
         )
         
         return response.strip().lower() == "true"
@@ -80,13 +96,32 @@ class DynamicUpdate:
         3. Output ONLY the updated summary (no explanations)"""},
                 {"role": "user", "content": prompt}
         ]
-        
+        temp_prompt = """Update the conversation meta-summary by incorporating the new dialogue while maintaining continuity.
+        Guidelines:
+        1. Start from the previous meta-summary (if exists)
+        2. Add/update information based on the new dialogue
+        3. Keep it concise (1-2 sentences max)
+        4. Maintain context coherence
+
+        Previous Meta-summary: 
+        New Dialogue:
+  
+        Updated Meta-summary:"""
+
+        template_messages = [
+            {"role": "system", "content": """You are a conversation meta-summary updater. Your task is to:
+        1. Preserve relevant context from previous meta-summary
+        2. Integrate new information from current dialogue
+        3. Output ONLY the updated summary (no explanations)"""},
+                {"role": "user", "content": temp_prompt }
+        ]
         return self.client.chat_completion(
             model="Qwen",
             messages=messages,
             temperature=0.3,
             max_tokens=100,
-            tag="meta_update"
+            tag="meta_update",
+            template_messages=template_messages
         ).strip()
 
     def _update_connected_pages(self, page_id, new_meta_info):

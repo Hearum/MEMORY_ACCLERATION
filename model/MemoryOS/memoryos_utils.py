@@ -93,63 +93,110 @@ class OpenAIClient:
         if not os.path.exists(self.log_path):
             with open(self.log_path, "w", encoding="utf-8") as f:
                 json.dump({
-                    "total": 0,  # 所有LLM输入token总数
-                    "total_query": 0,  
-                    "reuse_continuity": 0,  # 连续对话复用
-                    "reuse_meta_summary": 0,  # 摘要生成阶段
-                    "reuse_meta_update": 0,  # Meta融合阶段
-                    "reuse_profile_merge": 0,  # 用户画像合并
-                    "reuse_analysis": 0,  # 各类分析模块
-                    "key_word": 0, 
-                    "theme":0,
-                    "personality_analysis":0,
+                    "total": 0,
+                    "total_query": 0,
+                    
+                    "reuse_continuity": 0,
+                    "fixed_reuse_continuity": 0,
+                    "continuity_count": 0,
+
+                    "reuse_meta_summary": 0,
+                    "fixed_reuse_meta_summary": 0,
+                    "meta_summary_count": 0,
+
+                    "reuse_meta_update": 0,
+                    "fixed_reuse_meta_update": 0,
+                    "meta_update_count": 0,
+
+                    "reuse_profile_merge": 0,
+                    "fixed_reuse_profile_merge": 0,
+                    "profile_merge_count": 0,
+
+                    "reuse_analysis": 0,
+                    "fixed_reuse_analysis": 0,
+                    "analysis_count": 0,
+
+                    "key_word": 0,
+                    "fixed_key_word": 0,
+                    "key_word_count": 0,
+
+                    "theme": 0,
+                    "fixed_theme": 0,
+                    "theme_count": 0,
+
+                    "personality_analysis": 0,
+                    "fixed_personality_analysis": 0,
+                    "personality_analysis_count": 0,
+
                     "final_question": 0,
+                    "fixed_final_question": 0,
+                    "final_question_count": 0,
                     "last_update": None
                 }, f, indent=2)
 
+
     def count_tokens(self, messages):
         total = 0
-        for msg in messages:
-            tokens = self.tokenizer.encode(msg["content"])
-            total += len(tokens)
+        if messages:
+            for msg in messages:
+                tokens = self.tokenizer.encode(msg["content"])
+                total += len(tokens)
+
         return total
 
-    def _update_log(self, tag, total_tokens):
+    def _update_log(self, tag, total_tokens, fixed_template_tokens):
         with self.lock:
+
             with open(self.log_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
+
+
             data["total"] += total_tokens
             data["total_query"] += 1
 
+
             if tag == "continuity":
                 data["reuse_continuity"] += total_tokens
+                data["fixed_reuse_continuity"] = fixed_template_tokens
+                data["continuity_count"] += 1  
             elif tag == "meta_summary":
                 data["reuse_meta_summary"] += total_tokens
+                data["fixed_reuse_meta_summary"] = fixed_template_tokens
+                data["meta_summary_count"] += 1  
             elif tag == "meta_update":
                 data["reuse_meta_update"] += total_tokens
+                data["fixed_reuse_meta_update"] = fixed_template_tokens
+                data["meta_update_count"] += 1  
             elif tag == "profile_merge":
-                data["reuse_profile_merge"] += total_tokens
-
+                data["reuse_profile_merge"] = total_tokens
+                data["fixed_reuse_profile_merge"] += fixed_template_tokens
+                data["profile_merge_count"] += 1  
             elif tag in ("analysis", "user_analysis", "assistant_analysis"):
-                data["reuse_analysis"] += total_tokens-258
-
+                data["reuse_analysis"] += total_tokens
+                data["fixed_reuse_analysis"] = fixed_template_tokens
+                data["analysis_count"] += 1  
             elif tag == "key_word":
-                    data["key_word"] += total_tokens-53
-
+                data["key_word"] += total_tokens
+                data["fixed_key_word"] = fixed_template_tokens
+                data["key_word_count"] += 1  
             elif tag == "theme":
-                    data["theme"] += total_tokens
-
+                data["theme"] += total_tokens
+                data["fixed_theme"] = fixed_template_tokens
+                data["theme_count"] += 1  
             elif tag == "personality_analysis":
-                    data["personality_analysis"] += total_tokens
-
+                data["personality_analysis"] += total_tokens
+                data["fixed_personality_analysis"] = fixed_template_tokens
+                data["personality_analysis_count"] += 1  
             elif tag == "final_question":
-                    data["final_question"] += total_tokens-344
-        elif tag == "final_question":  # 确保这里有处理 final_question
-            data["final_question"] += total_tokens
+                data["final_question"] += total_tokens
+                data["fixed_final_question"] = fixed_template_tokens
+                data["final_question_count"] += 1  
+
             data["last_update"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
             with open(self.log_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
-
 
     def _log_request_content(self, messages):
         with self.lock:
@@ -165,20 +212,38 @@ class OpenAIClient:
                     entry["messages"].append({"text": text, "length": length})
                 f.write(json.dumps(entry, ensure_ascii=False) + "\n")
                 
-    def chat_completion(self, model=None, messages=None, temperature=0.7, max_tokens=2000, tag=None):
-        model = model or self.model
-        total_tokens = self.count_tokens(messages)
-        self._update_log(tag, total_tokens)
-        self._log_request_content(messages) 
+    # def chat_completion(self, model=None, messages=None, temperature=0.7, max_tokens=2000, tag=None):
+    #     model = model or self.model
+    #     total_tokens = self.count_tokens(messages)
+    #     self._update_log(tag, total_tokens)
+    #     self._log_request_content(messages) 
 
-        response = gpt_client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens
-        )
-        return response.choices[0].message.content.strip()
-        # return response.choices[0].message.content.strip()
+    #     response = gpt_client.chat.completions.create(
+    #         model=model,
+    #         messages=messages,
+    #         temperature=temperature,
+    #         max_tokens=max_tokens
+    #     )
+    #     return response.choices[0].message.content.strip()
+    
+    def chat_completion(self, model=None, messages=None, temperature=0.7, max_tokens=2000, tag=None,template_messages=None,):
+            model = model or self.model
+            
+            fixed_template_tokens = self.count_tokens(template_messages)
+            total_tokens = self.count_tokens(messages)
+
+            self._update_log(tag, total_tokens,fixed_template_tokens)
+            # self._log_request_content(messages)
+
+            response = gpt_client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            
+            return response.choices[0].message.content.strip()
+
 
     def get_reuse_report(self):
         with open(self.log_path, "r", encoding="utf-8") as f:
@@ -215,8 +280,8 @@ class OpenAIClient:
         }
         return report
     
-def gpt_generate_answer(prompt, messages, client,tag=None):
-    return client.chat_completion(model="Qwen", messages=messages, temperature=0.7, max_tokens=2000,tag=tag)
+def gpt_generate_answer(prompt, messages, client,tag=None,template_messages=None,):
+    return client.chat_completion(model="Qwen", messages=messages, temperature=0.7, max_tokens=2000,tag=tag,template_messages=template_messages)
 
 def analyze_assistant_knowledge(dialogs, client):
     """
@@ -226,49 +291,60 @@ def analyze_assistant_knowledge(dialogs, client):
     conversation = "\n".join([f"User: {d['user_input']}\nAI: {d['agent_response']}\nTime:{d['timestamp']}\n" for d in dialogs])
 
     prompt = """
-# Assistant Knowledge Extraction Task
-Analyze the conversation and extract any fact or identity traits about the assistant. 
-If no traits can be extracted, reply with "None". Use the following format for output:
-The generated content should be as concise as possible — the more concise, the better.
-【Assistant Knowledge】
-- [Fact 1]
-- [Fact 2]
-- (Or "None" if none found)
+    # Assistant Knowledge Extraction Task
+    Analyze the conversation and extract any fact or identity traits about the assistant. 
+    If no traits can be extracted, reply with "None". Use the following format for output:
+    The generated content should be as concise as possible — the more concise, the better.
+    【Assistant Knowledge】
+    - [Fact 1]
+    - [Fact 2]
+    - (Or "None" if none found)
 
-Few-shot examples:
-1. User: Can you recommend some movies.
-   AI: Yes, I recommend Interstellar.
-   Time: 2023-10-01
-   【Assistant Knowledge】
-   - I recommend Interstellar on 2023-10-01.
+    Few-shot examples:
+    1. User: Can you recommend some movies.
+    AI: Yes, I recommend Interstellar.
+    Time: 2023-10-01
+    【Assistant Knowledge】
+    - I recommend Interstellar on 2023-10-01.
 
-2. User: Can you help me with cooking recipes?
-   AI: Yes, I have extensive knowledge of cooking recipes and techniques.
-   Time: 2023-10-02
-   【Assistant Knowledge】
-   - I have cooking recipes and techniques on 2023-10-02.
+    2. User: Can you help me with cooking recipes?
+    AI: Yes, I have extensive knowledge of cooking recipes and techniques.
+    Time: 2023-10-02
+    【Assistant Knowledge】
+    - I have cooking recipes and techniques on 2023-10-02.
 
-3. User: That’s interesting. I didn’t know you could do that.
-   AI: I’m glad you find it interesting!
-   【Assistant Knowledge】
-   - None
+    3. User: That’s interesting. I didn’t know you could do that.
+    AI: I’m glad you find it interesting!
+    【Assistant Knowledge】
+    - None
 
-Conversation:
-""" + conversation
+    Conversation:
+    """ 
 
     messages = [
-        {
-            "role": "system",
-            "content": """You are an assistant knowledge extraction engine. Rules:
-1. Extract ONLY explicit statements about the assistant's identity or knowledge.
-2. Use concise and factual statements in the first person.
-3. If no relevant information is found, output "None".""" 
-        },
-        {"role": "user", "content": prompt}
-    ]
+            {
+                "role": "system",
+                "content": """You are an assistant knowledge extraction engine. Rules:
+    1. Extract ONLY explicit statements about the assistant's identity or knowledge.
+    2. Use concise and factual statements in the first person.
+    3. If no relevant information is found, output "None".""" 
+            },
+            {"role": "user", "content": prompt+ conversation}
+        ]
+    
+    template_messages = [
+            {
+                "role": "system",
+                "content": """You are an assistant knowledge extraction engine. Rules:
+    1. Extract ONLY explicit statements about the assistant's identity or knowledge.
+    2. Use concise and factual statements in the first person.
+    3. If no relevant information is found, output "None".""" 
+            },
+            {"role": "user", "content": prompt}
+        ]
 
     print("Analyzing assistant knowledge...")
-    result = gpt_generate_answer(prompt, messages, client,tag="analysis")
+    result = gpt_generate_answer(prompt, messages, client,tag="analysis",template_messages=template_messages)
     
     # Parse output
     assistant_knowledge = result.replace("【Assistant Knowledge】", "").strip()
@@ -283,8 +359,15 @@ def gpt_summarize(dialogs, client):
         {"role": "system", "content": "You are an expert in summarizing dialogue topics, please generate a concise and precise summary."},
         {"role": "user", "content": prompt}
     ]
+
     print("调用 GPT 生成主题摘要...")
-    return gpt_generate_answer(prompt, messages, client,tag="meta_summary")
+
+    template_messages = [
+        {"role": "system", "content": "You are an expert in summarizing dialogue topics, please generate a concise and precise summary."},
+        {"role": "user", "content": ""}
+        
+    ]
+    return gpt_generate_answer(prompt, messages, client,tag="meta_summary",template_messages=template_messages)
 
 def gpt_generate_multi_summary(text, client):
     """
@@ -305,8 +388,15 @@ def gpt_generate_multi_summary(text, client):
         {"role": "system", "content": "You are an expert in analyzing dialogue topics. No more than two topics."},
         {"role": "user", "content": prompt}
     ]
+    template_messages = [
+        {"role": "system", "content": "You are an expert in analyzing dialogue topics. No more than two topics."},
+        {"role": "user", "content": ("Please analyze the following dialogue and generate multiple subtopic summaries (if applicable), with a maximum of two themes.\n"
+              "Each summary should include the subtopic name, keywords (separated by commas), and the summary text, formatted as a JSON array, with an example format as follows:\n"
+              "[\n  {\"theme\": \"Business trip\", \"keywords\": [\"Business trip\", \"Itinerary\", \"Work\"], \"content\": \" User mentioned the troubles related to business trips.\"},\n  {\"theme\": \"Health\", \"keywords\": [\"Cold\", \"Uncomfortable\", \"Sick\"], \"content\": \"User reported feeling unwell due to a cold.\"}\n]\n"
+              "Please directly output the JSON array, without adding any other content.\n\Conversation content:\n")}
+    ]
     print("调用 GPT 生成多子主题摘要...")
-    response_text = gpt_generate_answer(prompt, messages, client,tag="meta_summary")
+    response_text = gpt_generate_answer(prompt, messages, client,tag="meta_summary",template_messages=template_messages)
     import json
     try:
         summaries = json.loads(response_text)
@@ -442,7 +532,7 @@ def gpt_personality_analysis(dialogs, client):
     - (Include events, dates, locations, preferences, or other general or private information explicitly mentioned in the conversation. If none, write "None.")
 
     Conversation:
-    """ + conversation
+    """ 
 
     messages = [
             {
@@ -453,11 +543,21 @@ def gpt_personality_analysis(dialogs, client):
     3. Use concise and factual statements.
     4. If no relevant information is found, output "None"."""
             },
+            {"role": "user", "content": prompt+ conversation}
+        ]
+    template_messages = [
+            {
+                "role": "system",
+                "content": """You are a personality and user data analysis engine. Rules:
+    1. Extract ONLY observable traits and data with direct evidence.
+    2. Include general user data such as events, dates, locations, and preferences.
+    3. Use concise and factual statements.
+    4. If no relevant information is found, output "None"."""
+            },
             {"role": "user", "content": prompt}
         ]
-
     print("Running personality and user data analysis...")
-    result = gpt_generate_answer(prompt, messages, client,tag="personality_analysis")
+    result = gpt_generate_answer(prompt, messages, client,tag="personality_analysis",template_messages=template_messages)
     
     # Parse output
     profile, user_data = result.split("【User Data】") if "【User Data】" in result else (result, "None")
@@ -481,46 +581,82 @@ def gpt_update_profile(old_profile, new_analysis, client):
         Merged profile text with conflict resolution
     """
     prompt = f"""
-# Profile Merge Task
-Consolidate these profiles while:
-- Preserving all valid observations
-- Resolving conflicts
-- Adding new dimensions
+    # Profile Merge Task
+    Consolidate these profiles while:
+    - Preserving all valid observations
+    - Resolving conflicts
+    - Adding new dimensions
 
-## Current Profile
-{old_profile}
+    ## Current Profile
+    {old_profile}
 
-## New Data
-{new_analysis}
+    ## New Data
+    {new_analysis}
 
-## Rules
-1. Keep ALL verified traits from both
-2. Resolve conflicts by:
-   a) New explicit evidence > old assumptions
-   b) Mark as Neutral if contradictory
-3. Add new dimensions from new data
-4. Maintain EXACT original format
+    ## Rules
+    1. Keep ALL verified traits from both
+    2. Resolve conflicts by:
+    a) New explicit evidence > old assumptions
+    b) Mark as Neutral if contradictory
+    3. Add new dimensions from new data
+    4. Maintain EXACT original format
 
-Output ONLY the merged profile (no commentary):
-The generated content should not exceed 1500 words
-"""
+    Output ONLY the merged profile (no commentary):
+    The generated content should not exceed 1500 words
+    """
 
     messages = [
         {
-            "role": "system",
-            "content": """You are a profile integration system. Your rules:
-1. NEVER discard verified information
-2. Conflict resolution hierarchy:
-   Explicit statement > Implied trait > Assumption
-3. Add timestamps when traits change:
-   (Updated: [date]) for modified traits
-4. Preserve the 4-category structure"""
+        "role": "system",
+        "content": """You are a profile integration system. Your rules:
+            1. NEVER discard verified information
+            2. Conflict resolution hierarchy:
+            Explicit statement > Implied trait > Assumption
+            3. Add timestamps when traits change:
+            (Updated: [date]) for modified traits
+            4. Preserve the 4-category structure"""
         },
         {"role": "user", "content": prompt}
-    ]
+        ]
+    
+    temp_prompt = f"""
+    # Profile Merge Task
+    Consolidate these profiles while:
+    - Preserving all valid observations
+    - Resolving conflicts
+    - Adding new dimensions
 
+    ## Current Profile
+
+    ## New Data
+
+    ## Rules
+    1. Keep ALL verified traits from both
+    2. Resolve conflicts by:
+    a) New explicit evidence > old assumptions
+    b) Mark as Neutral if contradictory
+    3. Add new dimensions from new data
+    4. Maintain EXACT original format
+
+    Output ONLY the merged profile (no commentary):
+    The generated content should not exceed 1500 words
+    """
+    template_messages = [
+        {
+        "role": "system",
+        "content": """You are a profile integration system. Your rules:
+            1. NEVER discard verified information
+            2. Conflict resolution hierarchy:
+            Explicit statement > Implied trait > Assumption
+            3. Add timestamps when traits change:
+            (Updated: [date]) for modified traits
+            4. Preserve the 4-category structure"""
+        },
+        {"role": "user", "content": temp_prompt}
+        ]
+    
     print("Updating user profile dynamically...")
-    return gpt_generate_answer(prompt, messages, client,tag="profile_merge")
+    return gpt_generate_answer(prompt, messages, client,tag="profile_merge",template_messages=template_messages)
 
 def gpt_extract_theme(answer_text, client):
     prompt = f"请从以下回答中提取主题总结，并以【主题提取】：开头输出：\n{answer_text}\n"
@@ -528,8 +664,12 @@ def gpt_extract_theme(answer_text, client):
         {"role": "system", "content": "You are an expert in extracting conversation topics."},
         {"role": "user", "content": prompt}
     ]
+    template_messages = [
+        {"role": "system", "content": "You are an expert in extracting conversation topics."},
+        {"role": "user", "content":""}
+    ]
     print("调用 GPT 提取主题总结...")
-    return gpt_generate_answer(prompt, messages, client,tag="theme")
+    return gpt_generate_answer(prompt, messages, client,tag="theme",template_messages=template_messages)
 
 def llm_extract_keywords(text, client):
     prompt = "Please extract the keywords of the conversation topic from the following dialogue, separated by commas, and do not exceed three:\n" + text
@@ -537,8 +677,12 @@ def llm_extract_keywords(text, client):
         {"role": "system", "content": "You are a keyword extraction expert. Please extract the keywords of the conversation topic."},
         {"role": "user", "content": prompt}
     ]
+    template_messages = [
+        {"role": "system", "content": "You are a keyword extraction expert. Please extract the keywords of the conversation topic."},
+        {"role": "user", "content": " "}
+    ]
     print("调用 GPT 提取关键词...")
-    keywords_text =gpt_generate_answer(prompt, messages, client,tag="key_word")
+    keywords_text =gpt_generate_answer(prompt, messages, client,tag="key_word",template_messages=template_messages)
     keywords = [w.strip() for w in keywords_text.split(",") if w.strip()]
     return set(keywords)
 

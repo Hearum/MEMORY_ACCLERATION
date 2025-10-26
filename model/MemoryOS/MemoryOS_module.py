@@ -143,8 +143,36 @@ def generate_system_response_with_meta(query, short_mem, long_mem, retrieval_que
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt}
     ]
-    
-    response = client.chat_completion(model="Qwen", messages=messages, temperature=0.7, max_tokens=2000,tag="final_question")
+
+    system_prompt_temp = (
+        f"You are role-playing as {speaker_b} in a conversation with the user is playing is  {speaker_a}. "
+        f"Here are some of your character traits and knowledge:\n\n"
+        f"Any content referring to 'User' in the prompt refers to {speaker_a}'s content, and any content referring to 'AI'or 'assiant' refers to {speaker_b}'s content."
+        f"Your task is to answer questions about {speaker_a} or {speaker_b} in an extremely concise manner.\n"
+        f"When the question is: \"What did the charity race raise awareness for?\", you should not answer in the form of: \"The charity race raised awareness for mental health.\" Instead, it should be: \"mental health\", as this is more concise."
+    )
+    user_prompt_temp = (
+        f"<CONTEXT>\n"
+        f"Recent conversation between {speaker_a} and {speaker_b}:\n"
+        f"\n\n"
+        f"<MEMORY>\n"
+        f"Relevant past conversations:\n"
+        f"\n\n"
+        f"<CHARACTER TRAITS>\n"
+        f"Characteristics of {speaker_a}:\n"
+        f"\n\n"
+        f"the question is: \n"
+        f"Your task is to answer questions about {speaker_a} or {speaker_b} in an extremely concise manner.\n"
+        f"Please only provide the content of the answer, without including 'answer:'\n"
+        f"For questions that require answering a date or time, strictly follow the format \"15 July 2023\" and provide a specific date whenever possible. For example, if you need to answer \"last year,\" give the specific year of last year rather than just saying \"last year.\" Only provide one year, date, or time, without any extra responses.\n"
+        f"If the question is about the duration, answer in the form of several years, months, or days.\n"
+        f"Generate answers primarily composed of concrete entities, such as Mentoring program, school speech, etc"
+    )
+    template_messages = [
+        {"role": "system", "content": system_prompt_temp},
+        {"role": "user", "content": user_prompt_temp}
+    ]
+    response = client.chat_completion(model="Qwen", messages=messages, temperature=0.7, max_tokens=2000,tag="final_question",template_messages=template_messages)
     return response, system_prompt, user_prompt
 
 # 对话预处理
@@ -349,8 +377,8 @@ class MemoryOSModel:
                     meta_data,
                     client
                 )
-                import pdb
-                pdb.set_trace()
+                # import pdb
+                # pdb.set_trace()
             except Exception as e:
                 print(f"处理样本ID: {sample_id} 时发生错误，已跳过。错误信息: {e}")
                 print(qa)
