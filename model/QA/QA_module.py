@@ -26,7 +26,8 @@ Use the information in the dialogue as context to answer accurately and directly
 def get_timestamp():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
-
+token_logs = []
+log_file = "/home/shm/document/log/QA/log_o.json"
 class QAModel:
     def __init__(self, chunk_size=500, top_k=10):
         self.chunk_size = chunk_size
@@ -35,10 +36,34 @@ class QAModel:
         self.embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"),
                              base_url=os.getenv("OPENAI_API_BASE"))
+        self.tokenizer = tiktoken.get_encoding("cl100k_base")
+        self.max_tokens = 9000000
+        self.seed = 42
 
     def generate_response_no_rag(self, question, history_text):
         template = Template(PROMPT)
+        tokens = self.tokenizer.encode(history_text)
+        token_count = len(tokens)
+        # 截断
+        if token_count > self.max_tokens:
+            print(f"Prompt too long ({token_count}), truncating to {self.max_tokens} tokens.")
+            tokens = tokens[:self.max_tokens]  # 保留最前部分
+            history_text = self.tokenizer.decode(tokens)
+  
         prompt = template.render(HISTORY=history_text.strip(), QUESTION=question.strip())
+        
+        # if True:
+        #     num_tokens = len(self.tokenizer.encode(prompt, allowed_special='all'))
+        #     # 保存日志
+        #     log_entry = {
+        #         # "question": question,
+        #         # "history_text": history_text,
+        #         "prompt_tokens": num_tokens
+        #     }
+        #     with open(log_file, "a", encoding="utf-8") as f:
+        #         f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+        #         return None,None
+            
         retries = 0
         while retries < 3:
             try:

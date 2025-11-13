@@ -12,7 +12,7 @@ MODEL_NAME="QA"
 # memo0
 # HippoRAG
 # QA
-DATASETS="longmemeval_s"
+DATASETS="longmemeval_m"
 # locomo10
 # longmemeval_s
 # longmemeval_m
@@ -50,14 +50,20 @@ python -m sglang.launch_server \
   --served-model-name LLAMA \
   --attention-backend triton \
   --chunked-prefill-size 1024 \
-  --max-total-tokens 900000 \
+  --max-total-tokens 1024000 \
+  --allow-auto-truncate \
   --tensor-parallel-size 8 \
   --trust-remote-code \
-  --mem-fraction-static 0.98 \
+  --mem-fraction-static 0.90 \
   --disable-shared-experts-fusion \
-  --max-running-requests 50 \
-  --enable-mixed-chunk \
+  --max-running-requests 10 \
   --enable-metrics \
+  --enable-hierarchical-cache \
+  --hicache-ratio 3 \
+  --hicache-write-policy write_through \
+  --hicache-io-backend direct \
+  --hicache-mem-layout layer_first \
+  --hicache-storage-prefetch-policy best_effort \
   > "$LOG_FILE" 2>&1 &
 
 SERVER_PID=$!
