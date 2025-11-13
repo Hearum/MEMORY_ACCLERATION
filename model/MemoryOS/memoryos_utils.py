@@ -80,7 +80,7 @@ import openai
 import tiktoken
 
 class OpenAIClient:
-    def __init__(self, api_key, base_url, model="gpt-4o-mini", log_path="/home/shm/document/log/prompt_cal_log_m.json"):
+    def __init__(self, api_key, base_url, model="gpt-4o-mini", log_path="/home/shm/document/log/glm-4-9b-chat-1m-GGUF/prompt_cal_log_s.json"):
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
@@ -168,8 +168,8 @@ class OpenAIClient:
                 data["fixed_reuse_meta_update"] = fixed_template_tokens
                 data["meta_update_count"] += 1  
             elif tag == "profile_merge":
-                data["reuse_profile_merge"] = total_tokens
-                data["fixed_reuse_profile_merge"] += fixed_template_tokens
+                data["reuse_profile_merge"] += total_tokens
+                data["fixed_reuse_profile_merge"] = fixed_template_tokens
                 data["profile_merge_count"] += 1  
             elif tag in ("analysis", "user_analysis", "assistant_analysis"):
                 data["reuse_analysis"] += total_tokens
@@ -200,7 +200,7 @@ class OpenAIClient:
 
     def _log_request_content(self, messages):
         with self.lock:
-            log_path="/home/shm/document/log/log_m_all_query.json"
+            log_path="/home/shm/document/log/glm-4-9b-chat-1m-GGUF/log_s_all_query.json"
             with open(log_path, "a", encoding="utf-8") as f:
                 entry = {
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -233,7 +233,7 @@ class OpenAIClient:
             total_tokens = self.count_tokens(messages)
 
             self._update_log(tag, total_tokens,fixed_template_tokens)
-            # self._log_request_content(messages)
+            self._log_request_content(messages)
 
             response = gpt_client.chat.completions.create(
                 model=model,

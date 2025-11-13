@@ -41,7 +41,7 @@ def run_pipeline(models: list, datasets: list):
             mem_dir = os.path.join(OUTPUT_DIR, f"{model_name}_{dataset_name}_mem")
             os.makedirs(mem_dir, exist_ok=True)
             # Output jsonl file for evaluation script
-            output_file = os.path.join(OUTPUT_DIR, f"{model_name}_{dataset_name}_results.jsonl")
+            output_file = os.path.join(OUTPUT_DIR, f"glm-4-9b-chat-1m-GGUF_{model_name}_{dataset_name}_results.jsonl")
 
             try:
                 with open(dataset_path, "r", encoding="utf-8") as f:
@@ -62,25 +62,6 @@ def run_pipeline(models: list, datasets: list):
                 # pdb.set_trace()
                 print(f"[{idx+1}/{len(data)}] Processing sample: {sample_id}")
                 model_instance.generate_answer(idx, sample,dataset_name,output_file)
-                # try:
-                #     model_instance.generate_answer(idx, sample,dataset_name,output_file)
-                # # print(f"[DEBUG] Raw model output for {sample_id}:\n{system_answer}")
-                # # if system_answer is None:
-                # #     continue
-                # # results.append({
-                # #     "question_id": sample_id,
-                # #     "hypothesis": system_answer
-                # # })
-                # except Exception as e:
-                #     print(f"Error processing sample {sample_id}: {e}")
-                #     continue
-                # save
-                # try:
-                #     with open(output_file, "a", encoding="utf-8") as f:
-                #         for item in results:
-                #             f.write(json.dumps(item, ensure_ascii=False) + "\n")
-                # except Exception as e:
-                #     print(f"Failed to save intermediate results: {e}")
 
             print(f"Dataset {dataset_name} processed. Results saved to {output_file}")
 

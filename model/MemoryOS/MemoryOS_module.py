@@ -375,7 +375,6 @@ class MemoryOSModel:
                     speaker_a,
                     speaker_b,
                     meta_data,
-                    client
                 )
                 # import pdb
                 # pdb.set_trace()
