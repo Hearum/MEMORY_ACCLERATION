@@ -2,10 +2,11 @@
 #!/bin/bash
 
 MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
+export SGLANG_SKIP_MEMORY_CHECK=1
 # "/mnt/data/models/Llama-3.2-3B-Instruct"
 # /mnt/data/models/glm-4-9b/
 PORT=30085
-CUDA_DEVICES=0,1,2,3,4,5,6,7
+CUDA_DEVICES=0,1,2,3,
 LOG_DIR="/home/shm/document/MEMORY_ACCLERATION/log"
 MODEL_NAME="QA"
 # MemoryOS
@@ -49,21 +50,16 @@ python -m sglang.launch_server \
   --model-path $MODEL_PATH \
   --served-model-name LLAMA \
   --attention-backend triton \
-  --chunked-prefill-size 1024 \
+  --chunked-prefill-size 4096 \
   --max-total-tokens 1024000 \
   --allow-auto-truncate \
-  --tensor-parallel-size 8 \
+  --tensor-parallel-size 4 \
   --trust-remote-code \
-  --mem-fraction-static 0.90 \
+  --mem-fraction-static 0.85 \
   --disable-shared-experts-fusion \
   --max-running-requests 10 \
   --enable-metrics \
-  --enable-hierarchical-cache \
-  --hicache-ratio 3 \
-  --hicache-write-policy write_through \
-  --hicache-io-backend direct \
-  --hicache-mem-layout layer_first \
-  --hicache-storage-prefetch-policy best_effort \
+  --enable-mixed-chunk \
   > "$LOG_FILE" 2>&1 &
 
 SERVER_PID=$!
