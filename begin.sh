@@ -4,15 +4,15 @@
 MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
 # "/mnt/data/models/Llama-3.2-3B-Instruct"
 # /mnt/data/models/glm-4-9b/
-PORT=30085
-CUDA_DEVICES=0,1,2,3,4,5,6,7
+PORT=30089
+CUDA_DEVICES=0,1
 LOG_DIR="/home/shm/document/MEMORY_ACCLERATION/log"
-MODEL_NAME="QA"
+MODEL_NAME="MemoryOS"
 # MemoryOS
 # memo0
 # HippoRAG
 # QA
-DATASETS="longmemeval_m"
+DATASETS="longmemeval_oracle"
 # locomo10
 # longmemeval_s
 # longmemeval_m
@@ -25,22 +25,7 @@ LOG_FILE="$LOG_DIR/sglang_${MODEL_NAME}_${DATASETS}_$PORT_$NOW.log"
 
 echo "Starting SGLang server..."
 echo "Logs will be saved to $LOG_FILE"
-# python -m sglang.launch_server \
-#   --host 0.0.0.0 \
-#   --port $PORT \
-#   --model-path $MODEL_PATH \
-#   --served-model-name LLAMA \
-#   --attention-backend triton \
-#   --chunked-prefill-size 4096 \
-#   --max-total-tokens 1000000 \
-#   --tensor-parallel-size 2 \
-#   --trust-remote-code \
-#   --mem-fraction-static 0.98 \
-#   --disable-shared-experts-fusion \
-#   --max-running-requests 50 \
-#   --enable-mixed-chunk \
-#   --enable-metrics \
-#   > "$LOG_FILE" 2>&1 &
+
 CUDA_VISIBLE_DEVICES=$CUDA_DEVICES \
 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 python -m sglang.launch_server \
@@ -49,22 +34,41 @@ python -m sglang.launch_server \
   --model-path $MODEL_PATH \
   --served-model-name LLAMA \
   --attention-backend triton \
-  --chunked-prefill-size 1024 \
-  --max-total-tokens 1024000 \
-  --allow-auto-truncate \
-  --tensor-parallel-size 8 \
+  --chunked-prefill-size 4096 \
+  --max-total-tokens 500000 \
+  --tensor-parallel-size 2 \
   --trust-remote-code \
-  --mem-fraction-static 0.90 \
+  --mem-fraction-static 0.8 \
   --disable-shared-experts-fusion \
-  --max-running-requests 10 \
+  --max-running-requests 50 \
+  --enable-mixed-chunk \
   --enable-metrics \
-  --enable-hierarchical-cache \
-  --hicache-ratio 3 \
-  --hicache-write-policy write_through \
-  --hicache-io-backend direct \
-  --hicache-mem-layout layer_first \
-  --hicache-storage-prefetch-policy best_effort \
   > "$LOG_FILE" 2>&1 &
+
+# CUDA_VISIBLE_DEVICES=$CUDA_DEVICES \
+# PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+# python -m sglang.launch_server \
+#   --host 0.0.0.0 \
+#   --port $PORT \
+#   --model-path $MODEL_PATH \
+#   --served-model-name LLAMA \
+#   --attention-backend triton \
+#   --chunked-prefill-size 1024 \
+#   --max-total-tokens 1024000 \
+#   --allow-auto-truncate \
+#   --tensor-parallel-size 8 \
+#   --trust-remote-code \
+#   --mem-fraction-static 0.90 \
+#   --disable-shared-experts-fusion \
+#   --max-running-requests 10 \
+#   --enable-metrics \
+#   --enable-hierarchical-cache \
+#   --hicache-ratio 3 \
+#   --hicache-write-policy write_through \
+#   --hicache-io-backend direct \
+#   --hicache-mem-layout layer_first \
+#   --hicache-storage-prefetch-policy best_effort \
+#   > "$LOG_FILE" 2>&1 &
 
 SERVER_PID=$!
 echo "SGLang server PID: $SERVER_PID"

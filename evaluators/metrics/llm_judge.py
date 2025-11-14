@@ -4,8 +4,9 @@ from collections import defaultdict
 
 import numpy as np
 from openai import OpenAI
+import re
 
-from mem0.memory.utils import extract_json
+
 import os
 
 client = OpenAI(
@@ -38,7 +39,18 @@ Do NOT include both CORRECT and WRONG in your response, or it will break the eva
 
 Just return the label CORRECT or WRONG in a json format with the key as "label".
 """
-
+def extract_json(text):
+    """
+    Extracts JSON content from a string, removing enclosing triple backticks and optional 'json' tag if present.
+    If no code block is found, returns the text as-is.
+    """
+    text = text.strip()
+    match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
+    if match:
+        json_str = match.group(1)
+    else:
+        json_str = text  # assume it's raw JSON
+    return json_str
 
 def evaluate_llm_judge(question, gold_answer, generated_answer):
     """Evaluate the generated answer against the gold answer using an LLM judge."""
