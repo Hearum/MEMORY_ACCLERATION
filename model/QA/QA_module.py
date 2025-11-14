@@ -37,12 +37,12 @@ class QAModel:
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"),
                              base_url=os.getenv("OPENAI_API_BASE"))
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
-        self.max_tokens = 9000000
+        self.max_tokens = 1020000
         self.seed = 42
 
     def generate_response_no_rag(self, question, history_text):
         template = Template(PROMPT)
-        tokens = self.tokenizer.encode(history_text)
+        tokens = self.tokenizer.encode(history_text, allowed_special='all')
         token_count = len(tokens)
         # 截断
         if token_count > self.max_tokens:
