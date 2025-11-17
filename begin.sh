@@ -2,10 +2,16 @@
 #!/bin/bash
 
 MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
+export SGLANG_SKIP_MEMORY_CHECK=1
 # "/mnt/data/models/Llama-3.2-3B-Instruct"
 # /mnt/data/models/glm-4-9b/
+<<<<<<< HEAD
 PORT=30089
 CUDA_DEVICES=0,1
+=======
+PORT=30085
+CUDA_DEVICES=0,1,2,3,
+>>>>>>> 5e79122 (sapphire3 setting)
 LOG_DIR="/home/shm/document/MEMORY_ACCLERATION/log"
 MODEL_NAME="MemoryOS"
 # MemoryOS
@@ -35,14 +41,26 @@ python -m sglang.launch_server \
   --served-model-name LLAMA \
   --attention-backend triton \
   --chunked-prefill-size 4096 \
+<<<<<<< HEAD
   --max-total-tokens 500000 \
   --tensor-parallel-size 2 \
   --trust-remote-code \
   --mem-fraction-static 0.8 \
+=======
+  --max-total-tokens 1024000 \
+  --allow-auto-truncate \
+  --tensor-parallel-size 4 \
+  --trust-remote-code \
+  --mem-fraction-static 0.85 \
+>>>>>>> 5e79122 (sapphire3 setting)
   --disable-shared-experts-fusion \
   --max-running-requests 50 \
   --enable-mixed-chunk \
   --enable-metrics \
+<<<<<<< HEAD
+=======
+  --enable-mixed-chunk \
+>>>>>>> 5e79122 (sapphire3 setting)
   > "$LOG_FILE" 2>&1 &
 
 # CUDA_VISIBLE_DEVICES=$CUDA_DEVICES \
