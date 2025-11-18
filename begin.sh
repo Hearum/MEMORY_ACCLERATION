@@ -7,9 +7,9 @@ MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
 PORT=30089
 CUDA_DEVICES=0,1
 LOG_DIR="/home/shm/document/MEMORY_ACCLERATION/log"
-MODEL_NAME="MemoryOS"
+MODEL_NAME="memo0"
 # MemoryOS
-# memo0
+# Memo0
 # HippoRAG
 # QA
 DATASETS="longmemeval_oracle"
@@ -25,7 +25,22 @@ LOG_FILE="$LOG_DIR/sglang_${MODEL_NAME}_${DATASETS}_$PORT_$NOW.log"
 
 echo "Starting SGLang server..."
 echo "Logs will be saved to $LOG_FILE"
-
+# python -m sglang.launch_server \
+#   --host 0.0.0.0 \
+#   --port $PORT \
+#   --model-path $MODEL_PATH \
+#   --served-model-name LLAMA \
+#   --attention-backend triton \
+#   --chunked-prefill-size 4096 \
+#   --max-total-tokens 1000000 \
+#   --tensor-parallel-size 2 \
+#   --trust-remote-code \
+#   --mem-fraction-static 0.98 \
+#   --disable-shared-experts-fusion \
+#   --max-running-requests 50 \
+#   --enable-mixed-chunk \
+#   --enable-metrics \
+#   > "$LOG_FILE" 2>&1 &
 CUDA_VISIBLE_DEVICES=$CUDA_DEVICES \
 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 python -m sglang.launch_server \
@@ -41,34 +56,8 @@ python -m sglang.launch_server \
   --mem-fraction-static 0.8 \
   --disable-shared-experts-fusion \
   --max-running-requests 50 \
-  --enable-mixed-chunk \
   --enable-metrics \
   > "$LOG_FILE" 2>&1 &
-
-# CUDA_VISIBLE_DEVICES=$CUDA_DEVICES \
-# PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
-# python -m sglang.launch_server \
-#   --host 0.0.0.0 \
-#   --port $PORT \
-#   --model-path $MODEL_PATH \
-#   --served-model-name LLAMA \
-#   --attention-backend triton \
-#   --chunked-prefill-size 1024 \
-#   --max-total-tokens 1024000 \
-#   --allow-auto-truncate \
-#   --tensor-parallel-size 8 \
-#   --trust-remote-code \
-#   --mem-fraction-static 0.90 \
-#   --disable-shared-experts-fusion \
-#   --max-running-requests 10 \
-#   --enable-metrics \
-#   --enable-hierarchical-cache \
-#   --hicache-ratio 3 \
-#   --hicache-write-policy write_through \
-#   --hicache-io-backend direct \
-#   --hicache-mem-layout layer_first \
-#   --hicache-storage-prefetch-policy best_effort \
-#   > "$LOG_FILE" 2>&1 &
 
 SERVER_PID=$!
 echo "SGLang server PID: $SERVER_PID"
@@ -81,7 +70,9 @@ done
 echo "SGLang server is ready, starting pipeline..."
 
 export OPENAI_API_KEY="nope"
+export OPENROUTER_API_KEY="nope"
 export OPENAI_API_BASE="http://localhost:$PORT/v1"
+export OPENROUTER_API_BASE="http://localhost:$PORT/v1"
 export HF_ENDPOINT=https://hf-mirror.com
 # python /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py
 # python pipeline.py --models MemoryOS Memo0 --datasets locomo10 longmemeval_s
@@ -93,6 +84,22 @@ export HF_ENDPOINT=https://hf-mirror.com
 python3 /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py \
   --models $MODEL_NAME \
   --datasets $DATASETS 
+
+METRICS_DIR="/home/shm/document/temp_log"
+mkdir -p "$METRICS_DIR"
+
+
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+METRICS_FILE="$METRICS_DIR/metrics_sglang_${MODEL_NAME}_${DATASETS}_$PORT_$TIMESTAMP.txt"
+
+echo "Dumping SGLang metrics before shutdown..."
+curl -s "http://localhost:$PORT/metrics" -o "$METRICS_FILE"
+
+if [ $? -eq 0 ]; then
+    echo "Metrics saved to $METRICS_FILE"
+else
+    echo "Failed to fetch metrics, server may not expose /metrics"
+fi
 
 echo "Stopping SGLang server..."
 kill $SERVER_PID
