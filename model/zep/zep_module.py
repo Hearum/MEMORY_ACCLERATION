@@ -9,15 +9,16 @@ import os
 # from .src.openai.predict import OpenAIPredict
 # from .src.rag import RAGManager
 # from .src.utils import METHODS, TECHNIQUES
-# from .src.zep.add import ZepAdd
-# from .src.zep.search import ZepSearch
+from .add import ZepAdd
+from .search import ZepSearch
+
 from openai import OpenAI
 import openai
 import time
 import json
 from jinja2 import Template
-from mem0 import Memory
-from mem0.configs.base import MemoryConfig
+# from mem0 import Memory
+# from mem0.configs.base import MemoryConfig
 import os
 # class OpenAIClient:
 #     def __init__(self, api_key, base_url):
@@ -246,7 +247,7 @@ class memo0Model:
                 "config": {
                     "model": "sentence-transformers/all-MiniLM-L6-v2",
                     "embedding_dims": EMBED_DIM,
-                    "model_kwargs": {"device": "cuda"}
+                    "model_kwargs": {"device": "cuda:1"}
                 }
             },
             vector_store={
