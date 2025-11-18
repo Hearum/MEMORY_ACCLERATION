@@ -5,7 +5,7 @@ MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
 export SGLANG_SKIP_MEMORY_CHECK=1
 # "/mnt/data/models/Llama-3.2-3B-Instruct"
 # /mnt/data/models/glm-4-9b/
-PORT=30072
+PORT=30076
 CUDA_DEVICES=4
 LOG_DIR="/home/shm/document/MEMORY_ACCLERATION/log"
 MODEL_NAME="memo0"
