@@ -4,8 +4,9 @@
 MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
 # "/mnt/data/models/Llama-3.2-3B-Instruct"
 # /mnt/data/models/glm-4-9b/
-PORT=30080
-CUDA_DEVICES=4,7
+PORT=30084
+# 30085
+CUDA_DEVICES=4,5
 LOG_DIR="/home/shm/document/MEMORY_ACCLERATION/log"
 MODEL_NAME="langmem"
 # MemoryOS
@@ -13,7 +14,7 @@ MODEL_NAME="langmem"
 # HippoRAG
 # QA
 # Langmen
-DATASETS="longmemeval_s"
+DATASETS="longmemeval_m"
 # locomo10
 # longmemeval_s
 # longmemeval_m
@@ -36,10 +37,10 @@ python -m sglang.launch_server \
   --served-model-name LLAMA \
   --attention-backend triton \
   --chunked-prefill-size 4096 \
-  --max-total-tokens 100000 \
+  --max-total-tokens 350000 \
   --tensor-parallel-size 2 \
   --trust-remote-code \
-  --mem-fraction-static 0.9 \
+  --mem-fraction-static 0.95 \
   --disable-shared-experts-fusion \
   --max-running-requests 50 \
   --enable-metrics \
