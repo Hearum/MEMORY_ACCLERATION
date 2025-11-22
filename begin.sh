@@ -4,11 +4,11 @@
 MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
 # "/mnt/data/models/Llama-3.2-3B-Instruct"
 # /mnt/data/models/glm-4-9b/
-PORT=30084
+PORT=30089
 # 30085
-CUDA_DEVICES=4,5
+CUDA_DEVICES=2,3
 LOG_DIR="/home/shm/document/MEMORY_ACCLERATION/log"
-MODEL_NAME="langmem"
+MODEL_NAME="MemoryOS"
 # MemoryOS
 # Memo0
 # HippoRAG

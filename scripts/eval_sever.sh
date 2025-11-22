@@ -1,8 +1,8 @@
 MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
 # "/mnt/data/models/Llama-3.2-3B-Instruct"
 # /mnt/data/models/glm-4-9b/
-PORT=30086
-CUDA_DEVICES=0,1
+PORT=30082
+CUDA_DEVICES=2,3
 
 mkdir -p "$LOG_DIR"
 
@@ -29,4 +29,4 @@ python -m sglang.launch_server \
 
 export OPENAI_API_KEY="nope"
 export OPENAI_API_BASE="http://localhost:30086/v1"
-# python /home/shm/document/MEMORY_ACCLERATION/evaluators/base_evaluator.py --input_file /home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_QA_longmemeval_oracle_results.jsonl --dataset_type longmemeval
+# python /home/shm/document/MEMORY_ACCLERATION/evaluators/base_evaluator.py --input_file /home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_MemoryOS_longmemeval_m_results.jsonl --dataset_type longmemeval

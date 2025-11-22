@@ -80,7 +80,7 @@ import openai
 import tiktoken
 
 class OpenAIClient:
-    def __init__(self, api_key, base_url, model="gpt-4o-mini", log_path="/home/shm/document/log/glm-4-9b-chat-1m-GGUF/prompt_cal_log_o.json"):
+    def __init__(self, api_key, base_url, model="gpt-4o-mini", log_path="/home/shm/document/log/MemoryOS/prompt_cal_log_m.json"):
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
@@ -200,7 +200,7 @@ class OpenAIClient:
 
     def _log_request_content(self, messages):
         with self.lock:
-            log_path="/home/shm/document/log/glm-4-9b-chat-1m-GGUF/log_o_all_query.json"
+            log_path="/home/shm/document/log/MemoryOS/log_m_all_query.json"
             with open(log_path, "a", encoding="utf-8") as f:
                 entry = {
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
