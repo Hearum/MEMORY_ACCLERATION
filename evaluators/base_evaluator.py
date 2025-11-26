@@ -266,7 +266,12 @@ def get_anscheck_prompt(task, question, answer, response, abstention=False):
                         "Question: {}\n\nRubric: {}\n\nModel Response: {}\n\nIs the model response correct? Answer yes or no only.")
             prompt = template.format(question, answer, response)
         else:
-            raise NotImplementedError
+            template = ("I will give you an unanswerable question, an explanation, and a response from a model. "
+                        "Please answer yes if the model correctly identifies the question as unanswerable. "
+                        "The model could say that the information is incomplete, or some other information is given "
+                        "but the asked information is not.\n\nQuestion: {}\n\nExplanation: {}\n\nModel Response: {}\n\n"
+                        "Does the model correctly identify the question as unanswerable? Answer yes or no only.")
+            prompt = template.format(question, answer, response)
     else:
         template = ("I will give you an unanswerable question, an explanation, and a response from a model. "
                     "Please answer yes if the model correctly identifies the question as unanswerable. "

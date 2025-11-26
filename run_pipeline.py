@@ -17,6 +17,25 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def get_timestamp():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+import os
+import time
+import subprocess
+import requests
+# response = requests.get("http://localhost:30086/metrics", timeout=10)
+
+def dump_sglang_metrics(metrics_dir):
+    metrics_file = os.path.join(metrics_dir, f"metrics_sglang_log.txt")
+    url = os.environ.get("OPENAI_API_METRICS")
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            with open(metrics_file, 'w') as f:
+                f.write(response.text)  
+            print(f"Metrics saved to {metrics_file}")
+        else:
+            print(f"Failed to fetch. Server responded with status code {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to fetch metrics, server may not expose /metrics. Error: {e}")
 
 def run_pipeline(models: list, datasets: list):
 
@@ -38,10 +57,10 @@ def run_pipeline(models: list, datasets: list):
 
             # Create memory/temp directory
             # output_file = os.path.join(OUTPUT_DIR, f"{model_name}_{dataset_path.replace('.json','')}_results.json")
-            mem_dir = os.path.join(OUTPUT_DIR, f"{model_name}_{dataset_name}_mem")
-            os.makedirs(mem_dir, exist_ok=True)
+            # mem_dir = os.path.join(OUTPUT_DIR, f"{model_name}_{dataset_name}_mem")
+            # os.makedirs(mem_dir, exist_ok=True)
             # Output jsonl file for evaluation script
-            output_file = os.path.join(OUTPUT_DIR, f"glm-4-9b-chat-1m-GGUF_{model_name}_{dataset_name}_results.jsonl")
+            output_file = os.path.join(os.environ.get("EXP_RESULTS_DIR"), f"{model_name}_{dataset_name}_generation_results.jsonl")
 
             try:
                 with open(dataset_path, "r", encoding="utf-8") as f:
@@ -54,14 +73,13 @@ def run_pipeline(models: list, datasets: list):
                 print(f"somethin woring happen in loading dataset:{e}")
                 continue
 
-            results = []
-
             for idx, sample in enumerate(data):
                 sample_id = sample.get("sample_id") or sample.get("question_id") or f"sample_{idx+1}"
                 # import pdb
                 # pdb.set_trace()
                 print(f"[{idx+1}/{len(data)}] Processing sample: {sample_id}")
                 model_instance.generate_answer(idx, sample,dataset_name,output_file)
+                dump_sglang_metrics(os.environ.get("EXP_RESULTS_DIR"))
 
             print(f"Dataset {dataset_name} processed. Results saved to {output_file}")
 
