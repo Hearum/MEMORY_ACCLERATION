@@ -4,18 +4,17 @@
 MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
 # "/mnt/data/models/Llama-3.2-3B-Instruct"
 # /mnt/data/models/glm-4-9b/
-PORT=30058
+PORT=30069
 # longmemeval_m 30084
 # longmemeval_o 30086
-CUDA_DEVICES=2,3
-
-MODEL_NAME="QA"
+CUDA_DEVICES=4,5
+MODEL_NAME="MemoryOS"
 # MemoryOS
 # Memo0
 # HippoRAG
 # QA
-# Langmen
-DATASETS="longmemeval_s"
+# langmem
+DATASETS="longmemeval_m"
 # locomo10
 # longmemeval_s
 # longmemeval_m
@@ -24,9 +23,14 @@ DATASETS="longmemeval_s"
 NOW=$(date +"%Y-%m-%d_%H-%M-%S")
 
 RESULTS_DIR="/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_${MODEL_NAME}_${DATASETS}_mem"
+
 export EXP_RESULTS_DIR="$RESULTS_DIR"
 mkdir -p "$RESULTS_DIR"
 LOG_FILE="$RESULTS_DIR/sglang_${MODEL_NAME}_${DATASETS}_$PORT.log"
+
+SCRIPT_PATH="$(readlink -f "$0")"
+SCRIPT_NAME="$(basename "$SCRIPT_PATH")"
+cp -v "$SCRIPT_PATH" "$RESULTS_DIR/${SCRIPT_NAME%.sh}_backup_.sh"
 
 echo "Starting SGLang server..."
 echo "Logs will be saved to $LOG_FILE"

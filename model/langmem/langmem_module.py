@@ -278,7 +278,7 @@ from sentence_transformers import SentenceTransformer
 #     model_name="sentence-transformers/all-MiniLM-L6-v2",
 #     model_kwargs={"device": "cuda"}  # 或 "cpu"
 # )
-st_model = SentenceTransformer("all-MiniLM-L6-v2", device="cuda")  # 或 "cpu"
+st_model = SentenceTransformer("all-MiniLM-L6-v2", device="cuda:1")  # 或 "cpu"
 
 
 class LocalEmbeddings:
@@ -489,6 +489,8 @@ class langmemModel:
                 "search_time_b": tb,
                 "final_time": t_final,
                 "timestamp": get_timestamp(),
+                **({"category": qa.get("category")} if "category" in qa else {}),
+                **({"question_type": qa.get("question_type")} if "question_type" in qa else {})
             })
 
         try:
