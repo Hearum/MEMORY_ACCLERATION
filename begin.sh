@@ -46,7 +46,7 @@ python -m sglang.launch_server \
   --served-model-name LLAMA \
   --attention-backend triton \
   --chunked-prefill-size 4096 \
-  --max-total-tokens 1005000  \
+  --max-total-tokens 825000  \
   --allow-auto-truncate \
   --tensor-parallel-size 2 \
   --trust-remote-code \
@@ -104,8 +104,8 @@ else
     echo "Failed to fetch metrics, server may not expose /metrics"
 fi
 
-echo "Stopping SGLang server..."
-kill $SERVER_PID
-wait $SERVER_PID 2>/dev/null
-echo "SGLang server stopped."
+# echo "Stopping SGLang server..."
+# kill $SERVER_PID
+# wait $SERVER_PID 2>/dev/null
+# echo "SGLang server stopped."
 # curl -s "http://localhost:30086/metrics" -o "/home/shm/document/temp_log/metrics_sglang_langmem_longmemeval_m_20251117_073247.txt"
