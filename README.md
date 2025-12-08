@@ -40,7 +40,11 @@ Download from github [https://github.com/BAI-LAB/MemoryOS/blob/main/eval/locomo1
 
 ### longmemeval
 
-Download from Google Drive [longmemeval_data.tar.gz - Google](https://drive.google.com/file/d/1zJgtYRFhOh5zDQzzatiddfjYhFSnyQ80/view)
+Download from Google Drive [longmemeval_data.tar.gz - Google](https://drive.google.com/file/d/1zJgtYRFhOh5zDQzzatiddfjYhFSnyQ80/view) or use
+
+```
+wget https://huggingface.co/datasets/xiaowu0162/longmemeval/resolve/main/longmemeval_s.json -O dataset/longmemeval_s.json
+```
 
 - `longmemeval_s.json`: The LongMemEval_S introduced in the paper. Concatenating all the chat history roughly consumes 115k tokens (~40 history sessions) for Llama 3.
 - `longmemeval_m.json`: The LongMemEval_M introduced in the paper. Each chat history contains roughly 500 sessions.
