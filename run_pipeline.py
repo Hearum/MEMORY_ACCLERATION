@@ -67,7 +67,7 @@ def run_pipeline(models: list, datasets: list):
                     data = json.load(f)
                 print(f"total {len(data)} sample")
             except FileNotFoundError:
-                print(f"cannot find {dataset_name} file, make sure it in dir")
+                print(f"cannot find {dataset_path} file, make sure it in dir")
                 return
             except Exception as e:
                 print(f"somethin woring happen in loading dataset:{e}")

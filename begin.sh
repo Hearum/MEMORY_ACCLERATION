@@ -4,17 +4,20 @@
 MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
 # "/mnt/data/models/Llama-3.2-3B-Instruct"
 # /mnt/data/models/glm-4-9b/
-PORT=30069
-# longmemeval_m 30084
-# longmemeval_o 30086
-CUDA_DEVICES=4,5
+START_PORT=30050
+PORT=$START_PORT
+while ss -tuln | grep -q ":$PORT "; do
+    PORT=$((PORT + 1))
+done
+
+CUDA_DEVICES=4
 MODEL_NAME="MemoryOS"
 # MemoryOS
 # Memo0
 # HippoRAG
 # QA
 # langmem
-DATASETS="longmemeval_m"
+DATASETS="locomo10"
 # locomo10
 # longmemeval_s
 # longmemeval_m
@@ -46,9 +49,9 @@ python -m sglang.launch_server \
   --served-model-name LLAMA \
   --attention-backend triton \
   --chunked-prefill-size 4096 \
-  --max-total-tokens 825000  \
+  --max-total-tokens 50000  \
   --allow-auto-truncate \
-  --tensor-parallel-size 2 \
+  --tensor-parallel-size 1 \
   --trust-remote-code \
   --mem-fraction-static 0.90 \
   --disable-shared-experts-fusion \
@@ -104,8 +107,8 @@ else
     echo "Failed to fetch metrics, server may not expose /metrics"
 fi
 
-# echo "Stopping SGLang server..."
-# kill $SERVER_PID
-# wait $SERVER_PID 2>/dev/null
-# echo "SGLang server stopped."
+echo "Stopping SGLang server..."
+kill $SERVER_PID
+wait $SERVER_PID 2>/dev/null
+echo "SGLang server stopped."
 # curl -s "http://localhost:30086/metrics" -o "/home/shm/document/temp_log/metrics_sglang_langmem_longmemeval_m_20251117_073247.txt"

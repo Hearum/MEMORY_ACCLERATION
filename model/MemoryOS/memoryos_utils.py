@@ -90,49 +90,49 @@ class OpenAIClient:
         self.lock = Lock()  # 确保多线程写文件安全
 
         # 初始化文件
-        if not os.path.exists(self.log_path):
-            with open(self.log_path, "w", encoding="utf-8") as f:
-                json.dump({
-                    "total": 0,
-                    "total_query": 0,
+        # if not os.path.exists(self.log_path):
+        #     with open(self.log_path, "w", encoding="utf-8") as f:
+        #         json.dump({
+        #             "total": 0,
+        #             "total_query": 0,
                     
-                    "reuse_continuity": 0,
-                    "fixed_reuse_continuity": 0,
-                    "continuity_count": 0,
+        #             "reuse_continuity": 0,
+        #             "fixed_reuse_continuity": 0,
+        #             "continuity_count": 0,
 
-                    "reuse_meta_summary": 0,
-                    "fixed_reuse_meta_summary": 0,
-                    "meta_summary_count": 0,
+        #             "reuse_meta_summary": 0,
+        #             "fixed_reuse_meta_summary": 0,
+        #             "meta_summary_count": 0,
 
-                    "reuse_meta_update": 0,
-                    "fixed_reuse_meta_update": 0,
-                    "meta_update_count": 0,
+        #             "reuse_meta_update": 0,
+        #             "fixed_reuse_meta_update": 0,
+        #             "meta_update_count": 0,
 
-                    "reuse_profile_merge": 0,
-                    "fixed_reuse_profile_merge": 0,
-                    "profile_merge_count": 0,
+        #             "reuse_profile_merge": 0,
+        #             "fixed_reuse_profile_merge": 0,
+        #             "profile_merge_count": 0,
 
-                    "reuse_analysis": 0,
-                    "fixed_reuse_analysis": 0,
-                    "analysis_count": 0,
+        #             "reuse_analysis": 0,
+        #             "fixed_reuse_analysis": 0,
+        #             "analysis_count": 0,
 
-                    "key_word": 0,
-                    "fixed_key_word": 0,
-                    "key_word_count": 0,
+        #             "key_word": 0,
+        #             "fixed_key_word": 0,
+        #             "key_word_count": 0,
 
-                    "theme": 0,
-                    "fixed_theme": 0,
-                    "theme_count": 0,
+        #             "theme": 0,
+        #             "fixed_theme": 0,
+        #             "theme_count": 0,
 
-                    "personality_analysis": 0,
-                    "fixed_personality_analysis": 0,
-                    "personality_analysis_count": 0,
+        #             "personality_analysis": 0,
+        #             "fixed_personality_analysis": 0,
+        #             "personality_analysis_count": 0,
 
-                    "final_question": 0,
-                    "fixed_final_question": 0,
-                    "final_question_count": 0,
-                    "last_update": None
-                }, f, indent=2)
+        #             "final_question": 0,
+        #             "fixed_final_question": 0,
+        #             "final_question_count": 0,
+        #             "last_update": None
+        #         }, f, indent=2)
 
 
     def count_tokens(self, messages):
@@ -229,8 +229,8 @@ class OpenAIClient:
     def chat_completion(self, model=None, messages=None, temperature=0.7, max_tokens=2000, tag=None,template_messages=None,):
             model = model or self.model
             
-            fixed_template_tokens = self.count_tokens(template_messages)
-            total_tokens = self.count_tokens(messages)
+            # fixed_template_tokens = self.count_tokens(template_messages)
+            # total_tokens = self.count_tokens(messages)
 
             # self._update_log(tag, total_tokens,fixed_template_tokens)
             # self._log_request_content(messages)
