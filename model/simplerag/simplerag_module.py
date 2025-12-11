@@ -1,34 +1,72 @@
-import os
 import json
+import os
+import re
 import time
-from collections import defaultdict
 from jinja2 import Template
 from openai import OpenAI
 import numpy as np
-import tiktoken
-from tqdm import tqdm
-import pdb
-PROMPT = """
-# Question: 
-{{QUESTION}}
 
-# Context: 
+PROMPT = """
+You are an expert assistant designed for retrieval-augmented question answering.
+Your only knowledge source is the retrieved context provided below.
+
+====================  
+## User Question  
+{{QUESTION}}  
+====================  
+
+## Retrieved Context  
+The following text consists of one or multiple conversation sessions.  
+Each session may contain timestamps, speaker turns, summaries, or keywords.  
+This context is the **only** evidence you may rely on.
+
 {{CONTEXT}}
 
-# Short answer:
+====================  
+## Your Task  
+Provide the **shortest accurate answer** to the user question **strictly based on the retrieved context**.  
+Follow all instructions below:
+
+### 1. Faithfulness and grounding  
+- You must only use information explicitly stated in the retrieved context.  
+- Do not invent facts or rely on outside knowledge.  
+
+### 2. Answer length  
+- The answer must be **as short as possible**, typically **one concise sentence** or a short phrase.  
+- No explanations, no reasoning steps, no politeness.
+
+### 3. Use context wording  
+- Reuse exact phrases, facts, or wording from the context when possible.  
+- Do not paraphrase if the source wording is concise.
+
+### 4. No extra content  
+- Do not mention the sessions, timestamps, or speakers unless needed for correctness.  
+- Do not output analysis, bullet points, justification, or commentary.
+
+### 5. Ambiguity handling  
+- If multiple sessions give conflicting information, choose the most direct and relevant evidence.  
+- If the answer depends on multiple pieces of context, combine them briefly.
+
+====================  
+## Final Answer  
+Write only the final short answer:
 """
 
 def get_timestamp():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
 class simpleragModel:
-    def __init__(self, chunk_size=500, top_k=10):
-        self.chunk_size = chunk_size
+    def __init__(self, top_k=10):
         self.top_k = top_k
-        self.model = "LLAMA"
-        self.embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small") #os.getenv("EMBEDDING_MODEL")
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_API_BASE"))
-        self.client_embedding = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url="http://localhost:30099/v1") # embed model写死了，启动脚本在/home/shm/document/MEMORY_ACCLERATION/scripts/begin_embed_model.sh
+        self.model = \
+            "LLAMA"
+        self.embedding_model = \
+            os.getenv("EMBEDDING_MODEL", "text-embedding-3-small") #os.getenv("EMBEDDING_MODEL")
+        self.client = \
+            OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_API_BASE"))
+        self.client_embedding = \
+            OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url="http://localhost:33333/v1")
+    
     def generate_response(self, question, context):
         template = Template(PROMPT)
         prompt = template.render(CONTEXT=context, QUESTION=question)
@@ -63,69 +101,79 @@ class simpleragModel:
         return text
 
     def calculate_embedding(self, text):
+        if len(text.strip()) >= 8192:
+            text = text[:8192]  # Truncate to first 8192 characters
         response = self.client_embedding.embeddings.create(model=self.embedding_model, input=text)
         return response.data[0].embedding
 
     def calculate_similarity(self, emb1, emb2):
         return np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
 
-    def create_chunks(self, chat_history):
-        encoding = tiktoken.encoding_for_model(self.embedding_model)
-        documents = self.clean_chat_history(chat_history)
-        if self.chunk_size == -1:
-            return [documents], [self.calculate_embedding(documents)]
-
-        tokens = encoding.encode(documents)
-        chunks = []
-        embeddings = []
-        for i in range(0, len(tokens), self.chunk_size):
-            chunk_tokens = tokens[i:i+self.chunk_size]
-            chunk = encoding.decode(chunk_tokens)
-            chunks.append(chunk)
-            embeddings.append(self.calculate_embedding(chunk))
-        return chunks, embeddings
-
-    def search_topk(self, query, chunks, embeddings):
+    def search_topk(self, query, embeddings):
         query_emb = self.calculate_embedding(query)
         sims = [self.calculate_similarity(query_emb, emb) for emb in embeddings]
         if self.top_k == 1:
             idxs = [int(np.argmax(sims))]
         else:
-            idxs = np.argsort(sims)[-self.top_k:][::-1]
-        context = "\n<->\n".join([chunks[i] for i in idxs])
-        return context
+            idxs = np.argsort(sims)[-self.top_k:][::-1].tolist()
+        return idxs
 
     def generate_answer(self, idx, sample, dataset_name, output_file):
 
         sample_id = sample.get("sample_id") or sample.get("question_id", f"sample_{idx+1}")
 
+        if "29f2956b" in sample_id:
+            print(f"Skipping sample {sample_id} as it does not meet the criteria.")
+            return
+
         # ===== Step 1: Parse conversation =====
+        chat_history = []
+        turn2session = []
+        sessions = []
+        qa_pairs = []
+        speaker_a = None
+        speaker_b = None
+
+        # locomo10 dataset
         if dataset_name == "locomo10":
             conversation = sample.get("conversation", {})
-            chat_history = []
+            
             for key, chats in conversation.items():
-                if key in ["speaker_a", "speaker_b"] or "date" in key or "timestamp" in key:
-                    continue
-                for c in chats:
-                    chat_history.append({
-                        "speaker": c["speaker"],
-                        "text": c["text"],
-                        "timestamp": c.get("timestamp", "unknown")
-                    })
+                match = re.match(r"session_(\d+)$", key)
+                if match:
+                    session_id = int(match.group(1)) - 1
+                    timestamp = conversation.get(f"session_{session_id}_date_time")
+                    sessions.append(f"timestamp: {timestamp}\n")
+
+                    for c in chats:
+                        chat_history.append({
+                            "speaker": c["speaker"],
+                            "text": c["text"],
+                            "timestamp": timestamp,
+                        })
+                        turn2session.append(session_id)
+                        sessions[session_id] += f"{c['speaker']}: {c['text']}\n"
+
             qa_pairs = sample.get("qa", [])
             speaker_a = conversation.get("speaker_a", "User")
             speaker_b = conversation.get("speaker_b", "Assistant")
 
+        # longmemeval dataset(lme_m, lme_s, lme_oracle)
         elif dataset_name.startswith("longmemeval"):
-            chat_history = []
-            sessions = sample.get("haystack_sessions", [])
-            dates = sample.get("haystack_dates", [])
-
-            for i, session in enumerate(sessions):
-                timestamp = dates[i] if i < len(dates) else "unknown"
-                for turn in session:
-                    role = turn.get("role", "unknown")
-                    content = turn.get("content", "").strip()
+            haystack_sessions = sample.get("haystack_sessions")
+            haystack_dates = sample.get("haystack_dates")
+            haystack_session_ids = sample.get("haystack_session_ids")
+            assert(len(haystack_dates)   ==len(haystack_session_ids))
+            assert(len(haystack_sessions)==len(haystack_session_ids))
+            
+            for i in range(len(haystack_session_ids)):
+                session_id = i
+                timestamp = haystack_dates[i]
+                sessions.append(f"timestamp: {timestamp}\n")
+                
+                for turn in haystack_sessions[i]:
+                    role = turn.get("role")
+                    content = turn.get("content").strip()
                     if not content:
                         continue  # 跳过空白回合
                     chat_history.append({
@@ -133,13 +181,15 @@ class simpleragModel:
                         "text": content,
                         "timestamp": timestamp
                     })
+                    turn2session.append(session_id)
+                    sessions[session_id] += f"{chat_history[-1]['speaker']}: {content}\n"
 
             qa_pairs = [{
-                "question": sample.get("question", ""),
-                "answer": sample.get("answer", ""),
-                "question_id": sample.get("question_id", ""),
-                "question_type": sample.get("question_type", ""),
-                "question_date": sample.get("question_date", "")
+                "question":      sample.get("question"),
+                "answer":        sample.get("answer"),
+                "question_id":   sample.get("question_id"),
+                "question_type": sample.get("question_type"),
+                "question_date": sample.get("question_date"),
             }]
 
             speaker_a = "User"
@@ -153,7 +203,18 @@ class simpleragModel:
             return
 
         # ===== Step 2: Create chunks =====
-        chunks, embeddings = self.create_chunks(chat_history)
+        turns = []
+        pair2session = []
+        for i in range(0, len(chat_history), 2):
+            pair2session.append(turn2session[i])
+            turn = chat_history[i]
+            if (i + 1 < len(chat_history)):
+                turn_next = chat_history[i + 1]
+                if turn["timestamp"] == turn_next["timestamp"]:
+                    turns.append(f"{turn['speaker']}: {turn['text']}\n{turn_next['speaker']}: {turn_next['text']}")
+                    continue
+            turns.append(f"{turn['speaker']}: {turn['text']}")
+        embeddings = [self.calculate_embedding(turn) for turn in turns]
 
         # ===== Step 3: Generate answers =====
         results = []
@@ -161,10 +222,11 @@ class simpleragModel:
             question = qa.get("question", "")
             original_answer = qa.get("answer", "")
 
-            context = chunks[0] if self.chunk_size == -1 else self.search_topk(question, chunks, embeddings)
-
+            topk_idx = self.search_topk(question, embeddings)
+            context_idxs = set(pair2session[i] for i in topk_idx)
+            context = "\n<->\n".join(sessions[i] for i in context_idxs)
             system_answer, _ = self.generate_response(question, context)
-
+            
             results.append({
                 "sample_id": sample_id,
                 "speaker_a": speaker_a,
