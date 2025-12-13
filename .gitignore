@@ -1,8 +1,13 @@
+# cache for memory agent
 /model/MemoryOS/eval/mem_tmp_loco_final
 /model/MemoryOS/eval/mem_tmp_longmemeval_s
+/model/MemGAS/data/*/**
+/model/Nemori/chroma_db
+# data and log
 /results
 /dataset
-/log
+/temp_log
+# scripts
 /begin.sh
 /begin2.sh
 model/Nemori/chroma_db
