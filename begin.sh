@@ -4,24 +4,22 @@
 MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
 # "/mnt/data/models/Llama-3.2-3B-Instruct"
 # /mnt/data/models/glm-4-9b/
-<<<<<<< HEAD
-PORT=30089
-# 30085
-CUDA_DEVICES=2,3
+
+START_PORT=30050
+PORT=$START_PORT
+while ss -tuln | grep -q ":$PORT "; do
+    PORT=$((PORT + 1))
+done
+
+CUDA_DEVICES=3
 LOG_DIR="/home/shm/document/MEMORY_ACCLERATION/log"
-=======
-PORT=30069
-# longmemeval_m 30084
-# longmemeval_o 30086
-CUDA_DEVICES=4,5
->>>>>>> main
-MODEL_NAME="MemoryOS"
+MODEL_NAME="QA"
 # MemoryOS
 # Memo0
 # HippoRAG
-# QA
+# QAs
 # langmem
-DATASETS="longmemeval_m"
+DATASETS="locomo10"
 # locomo10
 # longmemeval_s
 # longmemeval_m
@@ -53,9 +51,9 @@ python -m sglang.launch_server \
   --served-model-name LLAMA \
   --attention-backend triton \
   --chunked-prefill-size 4096 \
-  --max-total-tokens 1005000  \
+  --max-total-tokens 35000  \
   --allow-auto-truncate \
-  --tensor-parallel-size 2 \
+  --tensor-parallel-size 1 \
   --trust-remote-code \
   --mem-fraction-static 0.90 \
   --disable-shared-experts-fusion \

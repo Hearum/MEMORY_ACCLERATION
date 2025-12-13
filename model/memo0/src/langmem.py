@@ -295,7 +295,8 @@ class LangMemManager:
                 question = q["question"]
                 response1, speaker1_memory_time = agent1.search_memory(question, config)
                 response2, speaker2_memory_time = agent2.search_memory(question, config)
-
+                import pdb
+                pdb.set_trace()
                 generated_answer, response_time = get_answer(question, speaker1, response1, speaker2, response2)
 
                 result[key].append(

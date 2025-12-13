@@ -278,6 +278,7 @@ class LangMemManager:
                 message = f"{conv['timestamp']} | {conv['speaker']}: {conv['text']}"
                 if conv["speaker"] == speaker1:
                     agent1.add_memory(message, config)
+                    # agent1.add_memory("I like apple")
                 elif conv["speaker"] == speaker2:
                     agent2.add_memory(message, config)
                 else:

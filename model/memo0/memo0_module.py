@@ -2,7 +2,6 @@
 
 import argparse
 import os
-
 # from .src.langmem import LangMemManager
 # from .src.memzero.add import MemoryADD
 # from .src.memzero.search import MemorySearch
@@ -234,6 +233,7 @@ ANSWER_PROMPT_ZEP = """
     Question: {{question}}
     Answer:
     """
+# /home/shm/anaconda3/envs/sglang/lib/python3.10/site-packages/mem0/memory/main.py
 class memo0Model:
     def __init__(self, top_k=30, filter_memories=False, is_graph=False):
         self.top_k = top_k
@@ -287,7 +287,8 @@ class memo0Model:
         
         search_a_memory = format_results(results_a)
         search_b_memory = format_results(results_b)
-
+        print(search_a_memory)
+        print(search_b_memory)
         graph_memories_a = res_a.get("relations", [])
         graph_memories_b = res_b.get("relations", [])
 
@@ -306,7 +307,7 @@ class memo0Model:
 
         assistant_response = response["response"] if isinstance(response, dict) else str(response)
 
-        return assistant_response
+        return assistant_response,res_a,res_b
     
     def format_sample_for_memadd(self, sample, dataset_name, sample_id):
 
@@ -350,6 +351,7 @@ class memo0Model:
     def generate_answer(self, idx, sample, dataset_name, output_file):
 
         self.memory.reset()
+        
         sample_id = sample.get("sample_id") or sample.get("question_id", f"sample_{idx+1}")
         print(f"=== Processing sample {idx} ({dataset_name}) ===")
 
@@ -359,22 +361,26 @@ class memo0Model:
             print(f"⚠️ Sample {sample_id} has no valid conversation data, skipping.")
             return
         # ===== Step 1: Add 历史对话到 Memory =====
-        for turn in formatted["processed_dialogs"]:
+        for turn in formatted["processed_dialogs"][:20]:
 
             if turn.get("user_input"):
-                self.memory.add([{"role": "user", "content": turn["user_input"]}], user_id=formatted["speaker_a"],agent_id=None,metadata={"timestamp": turn.get("timestamp", "")},infer=True)
+                self.memory.add([{"role": "user", "content": turn["user_input"]}], user_id=formatted["speaker_a"],agent_id=None,metadata={"timestamp": turn.get("timestamp", "")},infer=False)
                 # self.memory.add([{"role": "user", "content": "The farmer needs to transport a fox, a chicken, and some grain across a river using a boat. The fox cannot be left alone with the chicken, and the chicken cannot be left alone with the grain. The boat can only hold one item at a time, and the river is too dangerous to cross multiple times. Can you help the farmer transport all three items across the river without any of them getting eaten? Remember, strategic thinking and planning are key to solving this puzzle. If you're stuck, try thinking about how you would solve the puzzle yourself, and use that as a starting point. Be careful not to leave the chicken alone with the fox, or the chicken and the grain alone together, as this will result in a failed solution. Good luck!"}], user_id=formatted["speaker_a"],agent_id=None,metadata={"timestamp": turn.get("timestamp", "")},infer=True)
             if turn.get("agent_response"):
-                self.memory.add([{"role": "assistant", "content": turn["agent_response"]}],user_id=formatted["speaker_b"], metadata={"timestamp": turn.get("timestamp", "")},infer=True)
+                self.memory.add([{"role": "assistant", "content": turn["agent_response"]}],user_id=formatted["speaker_b"], metadata={"timestamp": turn.get("timestamp", "")},infer=False)
                 # self.memory.add([{"role": "assistant", "content": 'To solve this puzzle, the farmer can follow these steps:\n\n1. First, the farmer should take the chicken across the river using the boat.\n2. Next, the farmer should go back to the original side of the river and take the fox across the river using the boat.\n3. Now, the farmer should go back to the original side of the river again and pick up the chicken using the boat.\n4. Finally, the farmer can take the grain across the river using the boat.\n\nThis solution ensures that at no point is the chicken left alone with the fox, or the chicken and the grain left alone together. The farmer can successfully transport all three items across the river using the boat.'}],user_id=formatted["speaker_b"], metadata={"timestamp": turn.get("timestamp", "")},infer=True)
 
         # ===== Step 2: 生成答案 =====
+        # import pdb
+        # pdb.set_trace()
+        # self.memory.get_all(user_id=formatted["speaker_b"])
         results = []
         for qa in formatted["qa_pairs"]:
             question = qa.get("question", "")
             original_answer = qa.get("answer", "") or qa.get("adversarial_answer", "")
             try:
-                system_answer = self.chat_with_memories(question,formatted["speaker_a"],formatted["speaker_b"])
+
+                system_answer,res_a,res_b = self.chat_with_memories(question,formatted["speaker_a"],formatted["speaker_b"])
             except Exception as e:
                 print(f"❌ Error generating answer for {sample_id}, question: {question}, error: {e}")
                 continue
@@ -386,6 +392,8 @@ class memo0Model:
                 "question": question,
                 "system_answer": system_answer,
                 "original_answer": original_answer,
+                "memoryA": res_a,
+                "memoryB": res_b,
                 "timestamp": get_timestamp(),
                 **({"category": qa.get("category")} if "category" in qa else {}),
                 **({"question_type": qa.get("question_type")} if "question_type" in qa else {})

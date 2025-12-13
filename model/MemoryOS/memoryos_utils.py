@@ -80,11 +80,7 @@ import openai
 import tiktoken
 
 class OpenAIClient:
-<<<<<<< HEAD
     def __init__(self, api_key, base_url, model="gpt-4o-mini", log_path="/home/shm/document/log/MemoryOS/prompt_cal_log_m.json"):
-=======
-    def __init__(self, api_key, base_url, model="gpt-4o-mini", log_path="/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_MemoryOS_longmemeval_s_mem/prompt_cal_log_s.json"):
->>>>>>> main
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
@@ -204,11 +200,7 @@ class OpenAIClient:
 
     def _log_request_content(self, messages):
         with self.lock:
-<<<<<<< HEAD
             log_path="/home/shm/document/log/MemoryOS/log_m_all_query.json"
-=======
-            log_path="/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_MemoryOS_longmemeval_s_mem/log_s_all_query.json"
->>>>>>> main
             with open(log_path, "a", encoding="utf-8") as f:
                 entry = {
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -237,8 +229,8 @@ class OpenAIClient:
     def chat_completion(self, model=None, messages=None, temperature=0.7, max_tokens=2000, tag=None,template_messages=None,):
             model = model or self.model
             
-            fixed_template_tokens = self.count_tokens(template_messages)
-            total_tokens = self.count_tokens(messages)
+            # fixed_template_tokens = self.count_tokens(template_messages)
+            # total_tokens = self.count_tokens(messages)
 
             # self._update_log(tag, total_tokens,fixed_template_tokens)
             # self._log_request_content(messages)

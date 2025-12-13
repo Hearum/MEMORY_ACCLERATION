@@ -300,39 +300,51 @@ class LocalEmbeddings:
 local_embed = LocalEmbeddings(st_model)
 
 
-
-
 from langchain_openai import ChatOpenAI
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"),base_url=os.environ.get("OPENAI_API_BASE"))
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent
+from langgraph.store.memory import InMemoryStore
+from langgraph.checkpoint.memory import MemorySaver
+from langmem import create_manage_memory_tool, create_search_memory_tool
+import os
+import time
+
 class LangMem:
-    def __init__(
-        self,
-    ):
+    def __init__(self, model_name="LLAMA", embed_model=local_embed):
+        # 初始化内存存储
         self.store = InMemoryStore(index={
+            "text_key": "memory",
+            "metadata_key": "metadata",
+            "id_key": "id",
             "dims": 384,
-            "embed": local_embed,
+            "embedding_key": "embedding",
+            "embed": embed_model,
         })
-        self.checkpointer = MemorySaver()  # Checkpoint graph state
-        local_chat = ChatOpenAI(
+
+        self.checkpointer = MemorySaver()
+
+        self.local_chat = ChatOpenAI(
             model_name="LLAMA",
-            openai_api_base=os.environ.get("OPENAI_API_BASE"),  
-            openai_api_key=os.environ.get("OPENAI_API_KEY"), 
+            openai_api_base=os.environ.get("OPENAI_API_BASE"),
+            openai_api_key=os.environ.get("OPENAI_API_KEY"),
             temperature=0
         )
+
         self.agent = create_react_agent(
-            local_chat,
-            prompt=prompt,
+            self.local_chat,
             tools=[
                 create_manage_memory_tool(namespace=("memories",)),
                 create_search_memory_tool(namespace=("memories",)),
             ],
             store=self.store,
-            checkpointer=self.checkpointer,
+            checkpointer=self.checkpointer
         )
 
     def add_memory(self, message, config):
         return self.agent.invoke({"messages": [{"role": "user", "content": message}]}, config=config)
-
+    # self.agent_a.add_memory("I like apple",config = {"configurable": {"thread_id": f"thread-{idx}"}})
+    # self.agent_a.search_memory("what food i like",config = {"configurable": {"thread_id": f"thread-{idx}"}})
     def search_memory(self, query, config):
         try:
             t1 = time.time()
@@ -342,7 +354,7 @@ class LangMem:
         except Exception as e:
             print(f"Error in search_memory: {e}")
             return "", t2 - t1
-        
+
 class langmemModel:
 
     def __init__(self, top_k=30, filter_memories=False, is_graph=False):
@@ -414,11 +426,12 @@ class langmemModel:
 
 
     def generate_answer(self, idx, sample, dataset_name, output_file):
-
-        # 重置agent
-        self.agent_a = LangMem()
-        self.agent_b = LangMem()
-
+        """
+        为单个样本生成回答：
+        1. 添加对话到 memory
+        2. 查询 memory
+        3. 使用 LLM 根据记忆生成答案
+        """
         sample_id = sample.get("sample_id") or sample.get("question_id", f"sample_{idx+1}")
         print(f"=== Processing sample {idx} ({dataset_name}) ===")
 
@@ -429,42 +442,33 @@ class langmemModel:
 
         speaker_a = formatted["speaker_a"]
         speaker_b = formatted["speaker_b"]
-
         dialogs = formatted["processed_dialogs"]
         qa_pairs = formatted["qa_pairs"]
 
-
+        # 添加对话记忆
         print("Adding conversation memories...")
         for turn in dialogs:
             timestamp = turn.get("timestamp", "")
-
             if turn.get("user_input"):
-                # user_input -> speaker A
                 self.agent_a.add_memory(
                     message=f"{timestamp} | {speaker_a}: {turn['user_input']}",
-                    config={"configurable": {"thread_id": f"{speaker_a}-{idx}"}}
+                    config={"configurable": {"thread_id": f"{idx}"}}
                 )
-
             if turn.get("agent_response"):
-                # agent_response -> speaker B
-                self.agent_b.add_memory(
-                    message=f"{timestamp} | {speaker_b}: {turn['agent_response']}",
-                    config={"configurable": {"thread_id": f"{speaker_b}-{idx}"}}
-                )
+                self.agent_b.add_memory(f"{timestamp} | {speaker_b}: {turn['agent_response']}",
+                                        config={"configurable": {"thread_id": f"{idx}"}})
+            import pdb
+            pdb.set_trace()
+    # self.agent_a.add_memory("Remember that I prefer dark mode.",config = {"configurable": {"thread_id": f"thread-{idx}"}})
+    # self.agent_a.search_memory("Please retrieve my stored memory about lighting preferences ,What are my lighting preferences?",config = {"configurable": {"thread_id": f"thread-{idx}"}})
         print("Processing QA pairs...")
         results = []
         for qa in qa_pairs:
             question = qa.get("question", "")
             original_answer = qa.get("answer", "")
 
-            memories_a, ta = self.agent_a.search_memory(
-                query=question,
-                config={"configurable": {"thread_id": f"{speaker_a}-{idx}"}}
-            )
-            memories_b, tb = self.agent_b.search_memory(
-                query=question,
-                config={"configurable": {"thread_id": f"{speaker_b}-{idx}"}}
-            )
+            memories_a, ta = self.agent_a.search_memory(question)
+            memories_b, tb = self.agent_b.search_memory(question)
 
             try:
                 system_answer, t_final = self.chat_with_memories(
@@ -496,10 +500,30 @@ class langmemModel:
         try:
             with open(output_file, "a", encoding="utf-8") as f:
                 json.dump(results, f, ensure_ascii=False, indent=2)
-            # print(f"✅ Sample {sample_id} processed successfully.")
-            print(f"✅ sample {sample_id} success, result save in {output_file}")
+            print(f"✅ Sample {sample_id} processed successfully, saved in {output_file}")
         except Exception as e:
             print(f"⚠️ Failed to save results: {e}")
+
+    # def chat_with_memories(self, question, speaker_a_id, speaker_b_id, memories_a, memories_b):
+    #     """
+    #     根据记忆生成最终回答
+    #     """
+    #     prompt = ANSWER_PROMPT_TEMPLATE.render(
+    #         question=question,
+    #         speaker_1_user_id=speaker_a_id,
+    #         speaker_1_memories=memories_a,
+    #         speaker_2_user_id=speaker_b_id,
+    #         speaker_2_memories=memories_b,
+    #     )
+
+    #     t1 = time.time()
+    #     response = client.chat.completions.create(
+    #         model="LLAMA",
+    #         messages=[{"role": "system", "content": prompt}],
+    #         temperature=0.0
+    #     )
+    #     t2 = time.time()
+    #     return response.choices[0].message.content, t2 - t1
 
     # def generate_answer1(self, idx, sample, dataset_name, output_file):
 
