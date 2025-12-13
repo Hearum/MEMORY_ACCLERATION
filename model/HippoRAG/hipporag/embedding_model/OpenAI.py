@@ -77,44 +77,42 @@ class OpenAIEmbeddingModel(BaseEmbeddingModel):
         results = np.array([v.embedding for v in response.data])
 
         return results
-    import openai
-    def batch_encode(self, texts: list, **kwargs):
-        if isinstance(texts, str):
-            texts = [texts]
 
-        batch_size = kwargs.pop("batch_size", 16)
-        results = []
+    def batch_encode(self, texts: List[str], **kwargs) -> None:
+        if isinstance(texts, str): texts = [texts]
 
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i:i + batch_size]
+        params = deepcopy(self.embedding_config.encode_params)
+        if kwargs: params.update(kwargs)
 
-            # 找到空文本的索引
-            placeholder_indices = [j for j, t in enumerate(batch) if not t.strip()]
-            valid_batch = [t for t in batch if t.strip()]
+        if "instruction" in kwargs:
+            if kwargs["instruction"] != '':
+                params["instruction"] = f"Instruct: {kwargs['instruction']}\nQuery: "
+            # del params["instruction"]
 
-            if valid_batch:
+        logger.debug(f"Calling {self.__class__.__name__} with:\n{params}")
+
+        batch_size = params.pop("batch_size", 16)
+
+        if len(texts) <= batch_size:
+            results = self.encode(texts)
+        else:
+            pbar = tqdm(total=len(texts), desc="Batch Encoding")
+            results = []
+            for i in range(0, len(texts), batch_size):
+                batch = texts[i:i + batch_size]
                 try:
-                    embeddings = self.encode(valid_batch)
-                    embedding_dim = embeddings.shape[1]  # 动态获取向量维度
-                except openai.OpenAIError as e:
-                    print(f"Batch {i} encoding failed: {e}")
+                    batch = [t if t.strip() else "placeholder_text" for t in batch]
+                    results.append(self.encode(batch))
+                except:
                     import ipdb; ipdb.set_trace()
-                    embedding_dim =  2560 # 默认值
-                    embeddings = np.zeros((len(valid_batch), embedding_dim))
-            else:
-                embedding_dim = 1536  # 默认值
-                embeddings = np.zeros((0, embedding_dim))
+                pbar.update(batch_size)
+            pbar.close()
+            results = np.concatenate(results)
 
-            # 插回空文本占位向量
-            final_embeddings = []
-            vi = 0
-            for j in range(len(batch)):
-                if j in placeholder_indices:
-                    final_embeddings.append(np.zeros(embedding_dim))
-                else:
-                    final_embeddings.append(embeddings[vi])
-                    vi += 1
+        if isinstance(results, torch.Tensor):
+            results = results.cpu()
+            results = results.numpy()
+        if self.embedding_config.norm:
+            results = (results.T / np.linalg.norm(results, axis=1)).T
 
-            results.append(np.array(final_embeddings))
-
-        return np.concatenate(results)
+        return results

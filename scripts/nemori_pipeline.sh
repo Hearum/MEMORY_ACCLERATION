@@ -11,10 +11,9 @@ done
 CUDA_DEVICES=4
 
 MODEL_NAME="Nemori"
-DATASETS="locomo10"
+DATASETS="locomo10_full"
 
-# embed
-export EMBEDDING_API_BASE="http://localhost:30099/v1"
+# locomo10 longmemeval_s
 
 NOW=$(date +"%Y-%m-%d_%H-%M-%S")
 RESULTS_DIR="/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_${MODEL_NAME}_${DATASETS}_mem"
@@ -30,8 +29,9 @@ cp -v "$SCRIPT_PATH" "$RESULTS_DIR/${SCRIPT_NAME%.sh}_backup_.sh"
 echo "Starting SGLang server..."
 echo "Logs will be saved to $LOG_FILE"
 
+source ~/anaconda3/etc/profile.d/conda.sh
+conda activate sglang
 CUDA_VISIBLE_DEVICES=$CUDA_DEVICES \
-PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 python -m sglang.launch_server \
   --host 0.0.0.0 \
   --port $PORT \
@@ -39,7 +39,7 @@ python -m sglang.launch_server \
   --served-model-name LLAMA \
   --attention-backend triton \
   --chunked-prefill-size 4096 \
-  --max-total-tokens 60000  \
+  --max-total-tokens 30000  \
   --allow-auto-truncate \
   --tensor-parallel-size 1 \
   --trust-remote-code \
@@ -48,7 +48,7 @@ python -m sglang.launch_server \
   --max-running-requests 50 \
   --enable-metrics \
   --enable-mixed-chunk \
-    --disable-custom-all-reduce \
+  --disable-custom-all-reduce \
   > "$LOG_FILE" 2>&1 &
 
 
@@ -62,30 +62,30 @@ while ! nc -z localhost $PORT; do
 done
 echo "SGLang server is ready, starting pipeline..."
 
+# LLM Sever
 export OPENAI_API_KEY="nope"
 export OPENROUTER_API_KEY="nope"
-
 export OPENAI_API_METRICS="http://localhost:$PORT/metrics"
-
 export OPENAI_API_BASE="http://localhost:$PORT/v1"
 export OPENROUTER_API_BASE="http://localhost:$PORT/v1"
+
+# EMBEDDING Sever
+export EMBED_API_BASE="http://localhost:8000/v1"
+export EMBED_MODEL_NAME="/mnt/data3/models/Qwen3-Embedding-4B"
 
 export HF_ENDPOINT=https://hf-mirror.com
 
 # lme
 # python3 /home/shm/document/MEMORY_ACCLERATION/model/Nemori/nemori/evaluation/longmemeval/add.py
+# python3 /home/shm/document/MEMORY_ACCLERATION/model/Nemori/nemori/evaluation/locomo/search.py
 
-# locomo10
-cd /home/shm/document/MEMORY_ACCLERATION/model/Nemori/nemori/evaluation
-python3 /home/shm/document/MEMORY_ACCLERATION/model/Nemori/nemori/evaluation/locomo/search.py
+# locomo
+# python3 /home/shm/document/MEMORY_ACCLERATION/model/Nemori/nemori/evaluation/locomo/add.py
+source ~/anaconda3/etc/profile.d/conda.sh
+conda activate nemori
+cd $RESULTS_DIR
+python3 /home/shm/document/MEMORY_ACCLERATION/model/Nemori/nemori/evaluation/locomo/add.py
 
-# python locomo/search.py
-# python3 /home/shm/document/MEMORY_ACCLERATION/model/Nemori/nemori/evaluation/longmemeval/add.py
-
-# python3 /home/shm/document/MEMORY_ACCLERATION/model/Nemori/nemori/evaluation/longmemeval/add.py
-
-# METRICS_DIR="/home/shm/document/temp_log"
-# mkdir -p "$METRICS_DIR"
 
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 METRICS_FILE="$RESULTS_DIR/metrics_sglang_${MODEL_NAME}_${DATASETS}_$PORT_$TIMESTAMP.txt"

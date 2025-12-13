@@ -8,7 +8,7 @@ import numpy as np
 import tiktoken
 from tqdm import tqdm
 import pdb
-from .hipporag import HippoRAG
+from .hipporag.HippoRAG import HippoRAGModule
 import shutil
 
 def get_timestamp():
@@ -26,16 +26,16 @@ def ensure_dir_exists(dir_path):
         os.makedirs(dir_path)  
 
 class HippoRAGModel:
-    def __init__(self, chunk_size=500, save_dir='outputs_locomo10',topk=10):
+    def __init__(self, chunk_size=500, save_dir='outputs_locomo10',topk=20):
 
         self.topk= topk
         self.save_dir= save_dir
-        self.hipporag = HippoRAG(save_dir=save_dir, 
-            llm_model_name='LLAMA',
-            llm_base_url=os.getenv("OPENAI_API_BASE"),
-            embedding_model_name="VLLM//mnt/data3/models/Qwen3-Embedding-4B",  
-            embedding_base_url="http://localhost:8000/v1"
-            )
+        # self.hipporag = HippoRAGModule(save_dir=save_dir, 
+        #     llm_model_name='LLAMA',
+        #     llm_base_url=os.getenv("OPENAI_API_BASE"),
+        #     embedding_model_name="VLLM//mnt/data3/models/Qwen3-Embedding-4B",  
+        #     embedding_base_url="http://localhost:8000/v1"
+        #     )
         
         # self.embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small") #os.getenv("EMBEDDING_MODEL")
         # self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_API_BASE"))
@@ -43,12 +43,12 @@ class HippoRAGModel:
     
     def generate_answer(self, idx, sample, dataset_name, output_file):
 
-        hippo = HippoRAG(
+        hippo = HippoRAGModule(
             save_dir=f"{os.environ.get('EXP_RESULTS_DIR')}/memory_temp/{idx}",
             llm_model_name="LLAMA",
             llm_base_url=os.getenv("OPENAI_API_BASE"),
-            embedding_model_name="text-embedding",
-            embedding_base_url=os.getenv("EMBEDDING_API_BASE")
+            embedding_model_name="VLLM//mnt/data3/models/Qwen3-Embedding-4B", 
+            embedding_base_url="http://localhost:8000/v1"
         )
 
         sample_id = sample.get("sample_id") or sample.get("question_id", f"sample_{idx+1}")
@@ -112,35 +112,39 @@ class HippoRAGModel:
             return
 
         # === 5: Retrieval ===
-        questions = [qa["question"] for qa in qa_pairs]
-        original_answers = [qa.get("answer", "") for qa in qa_pairs]
-
-        try:
-            retrieval_results = hippo.retrieve(queries=questions, num_to_retrieve=self.topk)
-        except Exception as e:
-            print(f"❌ Retrieval failed for {sample_id}: {e}")
-            return
-
-        try:
-            qa_results = hippo.rag_qa(retrieval_results)
-        except Exception as e:
-            print(f"❌ RAG QA failed for {sample_id}: {e}")
-            return
-
         outputs = []
-        for qa, res_list,ans in zip(qa_pairs, qa_results,original_answers ):
-            if not res_list:
+
+        for qa in qa_pairs:
+            question = qa["question"]
+            original_answer = qa.get("answer", "")
+
+            try:
+                retrieval_result = hippo.retrieve(queries=[question], num_to_retrieve=self.topk)
+            except Exception as e:
+                print(f"❌ Retrieval failed for {sample_id}, question: {question}: {e}")
                 continue
-            system_answer = res_list[0].answer
+
+            try:
+                qa_result = hippo.rag_qa(retrieval_result)
+            except Exception as e:
+                print(f"❌ RAG QA failed for {sample_id}, question: {question}: {e}")
+                continue
+
+            if not qa_result or not qa_result[0]:
+                continue
+            
+            system_answer = str(qa_result[0][0].answer) if isinstance(qa_result[0], list) else str(qa_result[0].answer)
+
             outputs.append({
                 "sample_id": sample_id,
                 "speaker_a": speaker_a,
                 "speaker_b": speaker_b,
-                "original_answer": ans,
-                "question": qa.get("question", ""),
+                "original_answer": original_answer,
+                "question": question,
+                "retrieval_result":str(retrieval_result),
                 "system_answer": system_answer,
-                "original_answer": qa.get("answer", ""),
                 "timestamp": get_timestamp(),
+                **({"category": qa.get("category")} if "category" in qa else {}),
                 **({"question_type": qa.get("question_type")} if "question_type" in qa else {})
             })
 

@@ -36,7 +36,7 @@ from .utils.config_utils import BaseConfig
 
 logger = logging.getLogger(__name__)
 
-class HippoRAG:
+class HippoRAGModule:
 
     def __init__(self,
                  global_config=None,

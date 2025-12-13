@@ -12,7 +12,7 @@ CUDA_DEVICES=0
 
 MODEL_NAME="HippoRAG"
 DATASETS="locomo10"
-
+# longmemeval_s locomo10
 # embed
 export EMBEDDING_API_BASE="http://localhost:30099/v1"
 
@@ -33,7 +33,6 @@ echo "Logs will be saved to $LOG_FILE"
 source ~/anaconda3/etc/profile.d/conda.sh
 conda activate sglang
 CUDA_VISIBLE_DEVICES=$CUDA_DEVICES \
-PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 python -m sglang.launch_server \
   --host 0.0.0.0 \
   --port $PORT \
@@ -41,7 +40,7 @@ python -m sglang.launch_server \
   --served-model-name LLAMA \
   --attention-backend triton \
   --chunked-prefill-size 4096 \
-  --max-total-tokens 60000  \
+  --max-total-tokens 40000  \
   --allow-auto-truncate \
   --tensor-parallel-size 1 \
   --trust-remote-code \
@@ -75,7 +74,7 @@ export OPENROUTER_API_BASE="http://localhost:$PORT/v1"
 export HF_ENDPOINT=https://hf-mirror.com
 
 source ~/anaconda3/etc/profile.d/conda.sh
-conda activate mem
+conda activate hipporag
 python3 /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py \
   --models $MODEL_NAME \
   --datasets $DATASETS 

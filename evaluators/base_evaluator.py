@@ -349,21 +349,21 @@ class Evaluation:
             bleu_scores = calculate_bleu_scores(pred_answer, gt_answer)
             llm_score = evaluate_llm_judge(question, gt_answer, pred_answer)
 
-            return {
-                "question": question,
-                "answer": gt_answer,
-                "response": pred_answer,
-                "category": category,
-                "f1_score": metrics.get("f1"),
-                "bleu_score": bleu_scores.get("bleu1"),
-                "llm_score": llm_score,
-            }
+            # return {
+            #     "question": question,
+            #     "answer": gt_answer,
+            #     "response": pred_answer,
+            #     "category": category,
+            #     "f1_score": metrics.get("f1"),
+            #     "bleu_score": bleu_scores.get("bleu1"),
+            #     "llm_score": llm_score,
+            # }
 
-        elif self.dataset_type == "longmemeval":
-            qid = item.get("sample_id", "")
-            qtype = str(item.get("question_type", ""))
-            q_text = question
-            ans_text = gt_answer
+        # elif self.dataset_type == "longmemeval":
+        #     qid = item.get("sample_id", "")
+        #     qtype = str(item.get("question_type", ""))
+        #     q_text = question
+        #     ans_text = gt_answer
 
             # 构建 prompt
             prompt = get_anscheck_prompt(qtype, q_text, ans_text, pred_answer, abstention="_abs" in str(qid))
@@ -378,9 +378,6 @@ class Evaluation:
             eval_response = completion.choices[0].message.content.strip()
             label = "yes" in eval_response.lower()
 
-            # 保留 F1/BLEU 作为辅助指标
-            metrics = calculate_metrics(pred_answer, ans_text)
-            bleu_scores = calculate_bleu_scores(pred_answer, ans_text)
 
             return {
                 "sample_id": qid,
@@ -451,5 +448,5 @@ if __name__ == "__main__":
     for cat, metrics in summary.items():
         print(f"Category {cat}: {metrics}")
 
-# python /home/shm/document/MEMORY_ACCLERATION/evaluators/base_evaluator.py --input_file /home/shm/document/MEMORY_ACCLERATION/results/MemoryOS_locomo10_results.jsonl --dataset_type locomo
+# python /home/shm/document/MEMORY_ACCLERATION/evaluators/base_evaluator.py --input_file /home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_HippoRAG_locomo10_mem_bf/cleaned_results.jsonl --dataset_type locomo
 # python /home/shm/document/MEMORY_ACCLERATION/evaluators/base_evaluator.py --input_file /home/shm/document/MEMORY_ACCLERATION/results/MemoryOS_longmemeval_m_results.jsonl --dataset_type longmemeval
