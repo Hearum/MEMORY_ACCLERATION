@@ -10,5 +10,30 @@
 # scripts
 /begin.sh
 /begin2.sh
-# pycache
+model/Nemori/chroma_db
+EverMemOS/results
+evaluation_memories/chroma_db/
+evaluation_memories/chroma_db/
+
+# Python cache
 __pycache__/
+*.pyc
+*.pyo
+
+# Experiment results / outputs
+results/
+EverMemOS/results/
+EverMemOS/data/**/*.json
+model/HippoRAG/hipporag/embedding_model/__pycache__/
+logs/
+*.log
+
+# Data / index (if not meant to version)
+memory_index/
+*.faiss
+*.pkl
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

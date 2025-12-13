@@ -150,7 +150,27 @@ ANSWER_PROMPT_GRAPH = """
 
     Answer:
     """
+from datetime import datetime, timezone
 
+def normalize_timestamp(ts):
+    """
+    Convert timestamp to UTC-aware datetime.
+    ts: str or datetime
+    """
+    if isinstance(ts, str):
+        try:
+            dt = datetime.fromisoformat(ts)
+        except:
+            dt = datetime.utcnow()
+    elif isinstance(ts, datetime):
+        dt = ts
+    else:
+        dt = datetime.utcnow()
+    # 如果是 naive，强制加 UTC
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    
+    return dt
 
 ANSWER_PROMPT = """
     You are an intelligent memory assistant tasked with retrieving accurate information from conversation memories.
@@ -239,22 +259,23 @@ class memo0Model:
         self.top_k = top_k
         self.filter_memories = filter_memories
         self.is_graph = is_graph
-        EMBED_DIM = 384
+        # EMBED_DIM = 384
+        # /home/shm/anaconda3/envs/sglang/lib/python3.10/site-packages/mem0/embeddings/openai.py
         memory_config = MemoryConfig(
-            embedder={
-                "provider": "huggingface",
-                "config": {
-                    "model": "sentence-transformers/all-MiniLM-L6-v2",
-                    "embedding_dims": EMBED_DIM,
-                    "model_kwargs": {"device": "cuda"}
-                }
-            },
+                embedder={
+                    "provider": "openai",
+                    "config": {
+                        "model": "/mnt/data3/models/Qwen3-Embedding-4B",   
+                        "api_key": "nope",               
+                        "openai_base_url": "http://localhost:8000/v1"
+                    }
+                },
             vector_store={
                 "provider": "faiss",
                 "config": {
                     "path": "./memory_index",
                     "collection_name": "mem0",
-                    "embedding_model_dims": EMBED_DIM
+                    "embedding_model_dims": 2560
                 }
             },
             llm={
@@ -362,10 +383,10 @@ class memo0Model:
         for turn in formatted["processed_dialogs"]:
 
             if turn.get("user_input"):
-                self.memory.add([{"role": "user", "content": turn["user_input"]}], user_id=formatted["speaker_a"],agent_id=None,metadata={"timestamp": turn.get("timestamp", "")},infer=True)
+                self.memory.add([{"role": "user", "content": turn["user_input"]}], user_id=formatted["speaker_a"],agent_id=None,metadata={"timestamp": normalize_timestamp(turn.get("timestamp"))},infer=True)
                 # self.memory.add([{"role": "user", "content": "The farmer needs to transport a fox, a chicken, and some grain across a river using a boat. The fox cannot be left alone with the chicken, and the chicken cannot be left alone with the grain. The boat can only hold one item at a time, and the river is too dangerous to cross multiple times. Can you help the farmer transport all three items across the river without any of them getting eaten? Remember, strategic thinking and planning are key to solving this puzzle. If you're stuck, try thinking about how you would solve the puzzle yourself, and use that as a starting point. Be careful not to leave the chicken alone with the fox, or the chicken and the grain alone together, as this will result in a failed solution. Good luck!"}], user_id=formatted["speaker_a"],agent_id=None,metadata={"timestamp": turn.get("timestamp", "")},infer=True)
             if turn.get("agent_response"):
-                self.memory.add([{"role": "assistant", "content": turn["agent_response"]}],user_id=formatted["speaker_b"], metadata={"timestamp": turn.get("timestamp", "")},infer=True)
+                self.memory.add([{"role": "assistant", "content": turn["agent_response"]}],user_id=formatted["speaker_b"], metadata={"timestamp": normalize_timestamp(turn.get("timestamp"))},infer=True)
                 # self.memory.add([{"role": "assistant", "content": 'To solve this puzzle, the farmer can follow these steps:\n\n1. First, the farmer should take the chicken across the river using the boat.\n2. Next, the farmer should go back to the original side of the river and take the fox across the river using the boat.\n3. Now, the farmer should go back to the original side of the river again and pick up the chicken using the boat.\n4. Finally, the farmer can take the grain across the river using the boat.\n\nThis solution ensures that at no point is the chicken left alone with the fox, or the chicken and the grain left alone together. The farmer can successfully transport all three items across the river using the boat.'}],user_id=formatted["speaker_b"], metadata={"timestamp": turn.get("timestamp", "")},infer=True)
 
         # ===== Step 2: 生成答案 =====
