@@ -7,7 +7,8 @@
 /begin2.sh
 model/Nemori/chroma_db
 EverMemOS/results
-evaluation_memories/chroma_db/chroma.sqlite3
+evaluation_memories/chroma_db/
+evaluation_memories/chroma_db/
 
 # Python cache
 __pycache__/
