@@ -25,6 +25,5 @@ python -m sglang.launch_server \
 export HF_ENDPOINT=https://hf-mirror.com
 export OPENAI_API_KEY="nope"
 export OPENAI_API_BASE="http://localhost:30144/v1"
-# conda activate sglang
-# python /home/shm/document/MEMORY_ACCLERATION/evaluators/base_evaluator.py --input_file /home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_MemoryOS_longmemeval_s_mem/MemoryOS_longmemeval_s_generation_results.jsonl --dataset_type locomo longmemeval
-# python /home/shm/document/MEMORY_ACCLERATION/evaluators/new_evaluator.py --input_file /home/shm/document/EverMemOS-main/evaluation/results/locomo-evermemos/answer_results.json  --dataset_type longmemeval
+conda activate sglang
+python /home/shm/document/MEMORY_ACCLERATION/evaluators/base_evaluator.py --input_file /home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_MemoryOS_locomo10_mem_bf/MemoryOS_locomo10_generation_results.jsonl  /home/shm/document/MEMORY_ACCLERATION/model/Nemori/nemori/evaluation/locomo/results_cleaned.json

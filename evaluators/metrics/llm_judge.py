@@ -13,32 +13,45 @@ client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
     base_url=os.environ.get("OPENAI_API_BASE")
 )
+ACCURACY_SCORE_PROMPT = """
+    You are an expert in evaluating model answers. Your task is to assign a score between 0 and 1 to a generated answer based on its accuracy with respect to the reference (gold) answer. 
+    - 1.0 means fully correct and completely matches the reference answer.
+    - 0.0 means completely wrong or missing the core information.
+    - Intermediate scores reflect partial correctness or missing key elements.
 
-ACCURACY_PROMPT = """
-Your task is to label an answer to a question as ’CORRECT’ or ’WRONG’. You will be given the following data:
-    (1) a question (posed by one user to another user), 
-    (2) a ’gold’ (ground truth) answer, 
-    (3) a generated answer
-which you will score as CORRECT/WRONG.
+    Before giving the score, first provide a short one-sentence explanation of your reasoning. Then provide the score.
+    Do NOT include any extra text beyond the explanation and the JSON with the score.
+    Only provide the score as a float between 0 and 1, with at most two decimal places.
 
-The point of the question is to ask about something one user should know about the other user based on their prior conversations.
-The gold answer will usually be a concise and short answer that includes the referenced topic, for example:
-Question: Do you remember what I got the last time I went to Hawaii?
-Gold answer: A shell necklace
-The generated answer might be much longer, but you should be generous with your grading - as long as it touches on the same topic as the gold answer, it should be counted as CORRECT. 
+    Example 1:
+    Question: What color is the sky on a clear day?
+    Reference/Gold Answer: Blue
+    Generated Answer: Blue
+    Explanation: The generated answer exactly matches the reference answer.
+    JSON output: {{"score": 1.0}}
 
-For time related questions, the gold answer will be a specific date, month, year, etc. The generated answer might be much longer or use relative time references (like "last Tuesday" or "next month"), but you should be generous with your grading - as long as it refers to the same date or time period as the gold answer, it should be counted as CORRECT. Even if the format differs (e.g., "May 7th" vs "7 May"), consider it CORRECT if it's the same date.
+    Example 2:
+    Question: What color is the sky on a clear day?
+    Reference/Gold Answer: Blue
+    Generated Answer: Light blue
+    Explanation: The generated answer is partially correct; it captures the main idea but is slightly imprecise.
+    JSON output: {{"score": 0.8}}
 
-Now it's time for the real question:
-Question: {question}
-Gold answer: {gold_answer}
-Generated answer: {generated_answer}
+    Example 3:
+    Question: What color is the sky on a clear day?
+    Reference/Gold Answer: Blue
+    Generated Answer: Green
+    Explanation: The generated answer is incorrect and does not match the reference.
+    JSON output: {{"score": 0.0}}
 
-First, provide a short (one sentence) explanation of your reasoning, then finish with CORRECT or WRONG. 
-Do NOT include both CORRECT and WRONG in your response, or it will break the evaluation script.
+    Now evaluate the real question:
+    Question: {question}
+    Reference/Gold Answer: {gold_answer}
+    Generated Answer: {generated_answer}
 
-Just return the label CORRECT or WRONG in a json format with the key as "label".
-"""
+    First, provide a short one-sentence explanation, then return the result in JSON format as: {{"score": float }}.
+    """
+
 def extract_json(text):
     """
     Extracts JSON content from a string, removing enclosing triple backticks and optional 'json' tag if present.
@@ -55,11 +68,11 @@ def extract_json(text):
 def evaluate_llm_judge(question, gold_answer, generated_answer):
     """Evaluate the generated answer against the gold answer using an LLM judge."""
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="LLAMA",
         messages=[
             {
                 "role": "user",
-                "content": ACCURACY_PROMPT.format(
+                "content": ACCURACY_SCORE_PROMPT.format(
                     question=question, gold_answer=gold_answer, generated_answer=generated_answer
                 ),
             }
@@ -67,8 +80,15 @@ def evaluate_llm_judge(question, gold_answer, generated_answer):
         response_format={"type": "json_object"},
         temperature=0.0,
     )
-    label = json.loads(extract_json(response.choices[0].message.content))["label"]
-    return 1 if label == "CORRECT" else 0
+    import pdb
+
+    content = response.choices[0].message.content
+    json_str = extract_json(content)
+    parsed = json.loads(json_str)
+    score = parsed["score"]
+    
+    # score = json.loads(extract_json(response.choices[0].message.content))["score"]
+    return float(score)
 
 
 def main():
