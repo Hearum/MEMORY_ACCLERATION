@@ -18,31 +18,47 @@ ACCURACY_SCORE_PROMPT = """
     - 1.0 means fully correct and completely matches the reference answer.
     - 0.0 means completely wrong or missing the core information.
     - Intermediate scores reflect partial correctness or missing key elements.
-
+    - You may assign any float value between 0 and 1 (rounded to at most two decimal places) depending on partial correctness.
+    - You can assign any intermediate value (like 0.67, 0.92, etc.) depending on partial correctness
+    - If the generated answer is semantically equivalent to the reference answer, even if the wording differs, assign a high score close to 1.0.
+    
     Before giving the score, first provide a short one-sentence explanation of your reasoning. Then provide the score.
     Do NOT include any extra text beyond the explanation and the JSON with the score.
-    Only provide the score as a float between 0 and 1, with at most two decimal places.
 
     Example 1:
-    Question: What color is the sky on a clear day?
-    Reference/Gold Answer: Blue
-    Generated Answer: Blue
-    Explanation: The generated answer exactly matches the reference answer.
+    Question: Who wrote 'Pride and Prejudice'?
+    Reference/Gold Answer: Jane Austen
+    Generated Answer: Jane Austen wrote 'Pride and Prejudice'
+    Explanation: The answer exactly matches the reference and contains no errors.
     JSON output: {{"score": 1.0}}
 
     Example 2:
-    Question: What color is the sky on a clear day?
-    Reference/Gold Answer: Blue
-    Generated Answer: Light blue
-    Explanation: The generated answer is partially correct; it captures the main idea but is slightly imprecise.
-    JSON output: {{"score": 0.8}}
+    Question: What is the capital of Germany?
+    Reference/Gold Answer: Berlin
+    Generated Answer: Munich
+    Explanation: The generated answer is incorrect; it names a different German city, so it fails to capture the core information.
+    JSON output: {{"score": 0.0}}
 
     Example 3:
-    Question: What color is the sky on a clear day?
-    Reference/Gold Answer: Blue
-    Generated Answer: Green
-    Explanation: The generated answer is incorrect and does not match the reference.
-    JSON output: {{"score": 0.0}}
+    Question: List three primary colors.
+    Reference/Gold Answer: Red, Blue, Yellow
+    Generated Answer: Red, Yellow
+    Explanation: The answer is partially correct; it lists two out of three correct primary colors, missing one key element.
+    JSON output: {{"score": 0.67}}
+
+    Example 4:
+    Question: What is photosynthesis?
+    Reference/Gold Answer: Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize foods from carbon dioxide and water, producing oxygen as a byproduct.
+    Generated Answer: Photosynthesis is the process by which plants produce energy from sunlight.
+    Explanation: The answer is partially correct; it mentions using sunlight and producing energy, but omits the carbon dioxide, water, and oxygen details, so it is incomplete.
+    JSON output: {{"score": 0.6}}
+
+    Example 5:
+    Question: What kind of job is Joanna beginning to perform because of her movie scripts?
+    Reference/Gold Answer: Filmmaker
+    Generated Answer: Screenwriter
+    Explanation: The generated answer refers to a specific role (screenwriter) that falls under the broader category of filmmaker, so it is semantically correct.
+    JSON output: {{"score": 1.0}}
 
     Now evaluate the real question:
     Question: {question}

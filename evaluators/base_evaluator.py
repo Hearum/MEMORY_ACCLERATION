@@ -28,15 +28,9 @@ def chat_completions_with_backoff(client, **kwargs):
     return client.chat.completions.create(**kwargs)
 
 def get_anscheck_prompt(task, question, answer, response):
-    """
-    Generate evaluation prompts for different task types.
-    For all tasks, the model should first give a short reasoning, then a yes/no answer.
-    """
+
     reasoning_suffix = (
-        "First, provide a short (one sentence) explanation of your reasoning, "
-        "then answer yes or no. "
-        "Do NOT include both yes and no in your response."
-    )
+        """Only write "yes" or "no". Do not include anything else after yes/no.""")
 
     if task in ['single-session-user', 'single-session-assistant', 'multi-session']:
         template = (
@@ -140,8 +134,8 @@ class Evaluation:
 
     def _process_item(self, item):
 
-        gt_answer = str(item.get("answer") or item.get("original_answer", ""))
-        pred_answer = str(item.get("response") or item.get("system_answer", ""))
+        gt_answer =  str(item.get("original_answer", "")) or str(item.get("golden_answer", "")) or str(item.get("answer", "")) 
+        pred_answer = str(item.get("response") or item.get("system_answer", "")) or str(item.get("answer")) 
         question = str(item.get("question", ""))
         category = str(item.get("category", "0"))
 
@@ -166,6 +160,7 @@ class Evaluation:
             }
             completion = chat_completions_with_backoff(self.metric_client, **kwargs)
             eval_response = completion.choices[0].message.content.strip()
+ 
             label = "yes" in eval_response.lower()
 
             return {
@@ -242,9 +237,10 @@ if __name__ == "__main__":
     evaluator.save()
 
     print("Summary (per category):")
-    for cat, metrics in summary.items():
+    for cat in sorted(summary.keys(), key=lambda x: int(x) if x != "overall_acc" else float('inf')):
         if cat == "overall_acc":
             continue
+        metrics = summary[cat]
         print(f"Category {cat}: {metrics}")
 
     print("\nSummary (overall):")

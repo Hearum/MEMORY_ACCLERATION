@@ -1,47 +1,34 @@
 
 #!/bin/bash
-
+cd /home/shm/document/MEMORY_ACCLERATION
 MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
-# "/mnt/data/models/Llama-3.2-3B-Instruct"
-# /mnt/data/models/glm-4-9b/
-START_PORT=30050
+START_PORT=30000
 PORT=$START_PORT
 while ss -tuln | grep -q ":$PORT "; do
     PORT=$((PORT + 1))
 done
 
-CUDA_DEVICES=0
-MODEL_NAME="MemoryOS"
-# MemoryOS
-# Memo0
-# HippoRAG
-# QA
-# langmem
-DATASETS="longmemeval_s"
-# locomo10
-# longmemeval_s
-# longmemeval_m
-# longmemeval_oracle
+CUDA_DEVICES=7
+
+MODEL_NAME="memo0"
+DATASETS="locomo10"
+
+# embed
+export EMBEDDING_API_BASE="http://localhost:30099/v1"
 
 NOW=$(date +"%Y-%m-%d_%H-%M-%S")
-
 RESULTS_DIR="/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_${MODEL_NAME}_${DATASETS}_mem"
-
 export EXP_RESULTS_DIR="$RESULTS_DIR"
-mkdir -p "$RESULTS_DIR"
-LOG_FILE="$RESULTS_DIR/sglang_${MODEL_NAME}_${DATASETS}_$PORT.log"
 
+mkdir -p "$RESULTS_DIR"
+
+LOG_FILE="$RESULTS_DIR/sglang_${MODEL_NAME}_${DATASETS}_$PORT.log"
 SCRIPT_PATH="$(readlink -f "$0")"
 SCRIPT_NAME="$(basename "$SCRIPT_PATH")"
 cp -v "$SCRIPT_PATH" "$RESULTS_DIR/${SCRIPT_NAME%.sh}_backup_.sh"
 
 echo "Starting SGLang server..."
 echo "Logs will be saved to $LOG_FILE"
-
-# 1004000 
-# 254000 
-source ~/anaconda3/etc/profile.d/conda.sh
-conda activate sglang
 
 CUDA_VISIBLE_DEVICES=$CUDA_DEVICES \
 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
@@ -52,13 +39,13 @@ python -m sglang.launch_server \
   --served-model-name LLAMA \
   --attention-backend triton \
   --chunked-prefill-size 4096 \
-  --max-total-tokens 50000  \
+  --max-total-tokens 60000  \
   --allow-auto-truncate \
   --tensor-parallel-size 1 \
   --trust-remote-code \
-  --mem-fraction-static 0.90 \
+  --mem-fraction-static 0.95 \
   --disable-shared-experts-fusion \
-  --max-running-requests 10 \
+  --max-running-requests 50 \
   --enable-metrics \
   --enable-mixed-chunk \
     --disable-custom-all-reduce \
@@ -82,26 +69,16 @@ export OPENAI_API_METRICS="http://localhost:$PORT/metrics"
 
 export OPENAI_API_BASE="http://localhost:$PORT/v1"
 export OPENROUTER_API_BASE="http://localhost:$PORT/v1"
+
 export HF_ENDPOINT=https://hf-mirror.com
-# python /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py
-# python pipeline.py --models MemoryOS Memo0 --datasets locomo10 longmemeval_s
-# python3 /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py --models memo0 --datasets locomo10
-# python pipeline.py --config config.yaml
-# python3 /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py --models simplerag --datasets longmemeval_oracle
-# python3 /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py --models HippoRAG --datasets longmemeval_oracle
-# python /home/shm/document/MEMORY_ACCLERATION/evaluators/base_evaluator.py --input_file /home/shm/document/MEMORY_ACCLERATION/results/MemoryOS_longmemeval_oracle_results.jsonl --dataset_type longmemeval
-source ~/anaconda3/etc/profile.d/conda.sh
-conda activate mem
+
+# python3 /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py
 python3 /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py \
   --models $MODEL_NAME \
   --datasets $DATASETS 
 
-METRICS_DIR="/home/shm/document/temp_log"
-mkdir -p "$METRICS_DIR"
-
-
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-METRICS_FILE="$METRICS_DIR/metrics_sglang_${MODEL_NAME}_${DATASETS}_$PORT_$TIMESTAMP.txt"
+METRICS_FILE="$RESULTS_DIR/metrics_sglang_${MODEL_NAME}_${DATASETS}_$PORT_$TIMESTAMP.txt"
 
 echo "Dumping SGLang metrics before shutdown..."
 curl -s "http://localhost:$PORT/metrics" -o "$METRICS_FILE"
@@ -111,9 +88,7 @@ if [ $? -eq 0 ]; then
 else
     echo "Failed to fetch metrics, server may not expose /metrics"
 fi
-
 echo "Stopping SGLang server..."
 kill $SERVER_PID
 wait $SERVER_PID 2>/dev/null
 echo "SGLang server stopped."
-# curl -s "http://localhost:30086/metrics" -o "/home/shm/document/temp_log/metrics_sglang_langmem_longmemeval_m_20251117_073247.txt"
