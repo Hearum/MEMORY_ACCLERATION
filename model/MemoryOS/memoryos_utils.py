@@ -5,6 +5,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 import os
+import re
 
 gpt_client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
@@ -560,8 +561,14 @@ def gpt_personality_analysis(dialogs, client):
     result = gpt_generate_answer(prompt, messages, client,tag="personality_analysis",template_messages=template_messages)
     
     # Parse output
-    profile, user_data = result.split("【User Data】") if "【User Data】" in result else (result, "None")
-    
+    # profile, user_data = result.split("【User Data】") if "【User Data】" in result else (result, "None")
+
+    profile_match = re.search(r"【User Profile】(.*?)【User Data】", result, re.S)
+    user_data_match = re.search(r"【User Data】(.*)", result, re.S)
+
+    profile = profile_match.group(1).strip() if profile_match else ""
+    user_data = user_data_match.group(1).strip() if user_data_match else "None"
+
     # Analyze assistant knowledge
     assistant_knowledge_result = analyze_assistant_knowledge(dialogs, client)
     

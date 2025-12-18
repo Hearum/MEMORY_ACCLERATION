@@ -15,6 +15,25 @@ DATA_DIR = os.path.join(os.path.join(BASE_DIR, "MEMORY_ACCLERATION"),"dataset")
 OUTPUT_DIR = os.path.join(os.path.join(BASE_DIR, "MEMORY_ACCLERATION"),"results")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+
+def load_finished_ids(output_file):
+    finished_ids = set()
+    if not os.path.exists(output_file):
+        return finished_ids
+    with open(output_file, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                sid = obj.get("sample_id") or obj.get("question_id")
+                if sid is not None:
+                    finished_ids.add(str(sid))
+            except json.JSONDecodeError: # 忽略可能的坏行
+                continue
+    return finished_ids
+
 def get_timestamp():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 import os
@@ -37,51 +56,103 @@ def dump_sglang_metrics(metrics_dir):
     except requests.exceptions.RequestException as e:
         print(f"Failed to fetch metrics, server may not expose /metrics. Error: {e}")
 
+import os
+import json
+from importlib import import_module
+from tqdm import tqdm
+
+
 def run_pipeline(models: list, datasets: list):
 
+    exp_dir = os.environ.get("EXP_RESULTS_DIR")
+    if exp_dir is None:
+        raise RuntimeError("EXP_RESULTS_DIR is not set")
+
+    os.makedirs(exp_dir, exist_ok=True)
+
     for model_name in models:
-        print(f"\n=== Running model: {model_name} ===")
-        # try:
-        model_module = import_module(f"model.{model_name}.{model_name}_module")
-        model_class_name = f"{model_name}Model"
-        model_instance = getattr(model_module, model_class_name)()
-        # except Exception as e:
-        #     print(f"Failed to load model {model_name}: {e}")
-        #     continue
+        tqdm.write(f"\n=== Running model: {model_name} ===")
+
+        try:
+            model_module = import_module(f"model.{model_name}.{model_name}_module")
+            model_class_name = f"{model_name}Model"
+            model_instance = getattr(model_module, model_class_name)()
+        except Exception as e:
+            tqdm.write(f"[ERROR] Failed to load model {model_name}: {e}")
+            continue
 
         for dataset in datasets:
             dataset_name = dataset["name"]
             dataset_path = dataset["path"]
-            
-            print(f"\n--- Evaluating dataset: {dataset_name} ---")
 
-            # Create memory/temp directory
-            # output_file = os.path.join(OUTPUT_DIR, f"{model_name}_{dataset_path.replace('.json','')}_results.json")
-            # mem_dir = os.path.join(OUTPUT_DIR, f"{model_name}_{dataset_name}_mem")
-            # os.makedirs(mem_dir, exist_ok=True)
-            # Output jsonl file for evaluation script
-            output_file = os.path.join(os.environ.get("EXP_RESULTS_DIR"), f"{model_name}_{dataset_name}_generation_results.jsonl")
+            tqdm.write(f"\n--- Evaluating dataset: {dataset_name} ---")
 
+            output_file = os.path.join(
+                exp_dir,
+                f"{model_name}_{dataset_name}_generation_results.jsonl"
+            )
+
+            # 读取数据集
             try:
                 with open(dataset_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                print(f"total {len(data)} sample")
+                tqdm.write(f"Total {len(data)} samples")
             except FileNotFoundError:
-                print(f"cannot find {dataset_path} file, make sure it in dir")
-                return
+                tqdm.write(f"[ERROR] Cannot find dataset file: {dataset_path}")
+                continue
             except Exception as e:
-                print(f"somethin woring happen in loading dataset:{e}")
+                tqdm.write(f"[ERROR] Failed to load dataset {dataset_path}: {e}")
                 continue
 
-            for idx, sample in enumerate(data):
-                sample_id = sample.get("sample_id") or sample.get("question_id") or f"sample_{idx+1}"
-                # import pdb
-                # pdb.set_trace()
-                print(f"[{idx+1}/{len(data)}] Processing sample: {sample_id}")
-                model_instance.generate_answer(idx, sample,dataset_name,output_file)
-                dump_sglang_metrics(os.environ.get("EXP_RESULTS_DIR"))
+            # 中断恢复
+            finished_ids = load_finished_ids(output_file)
+            if finished_ids:
+                tqdm.write(f"Found {len(finished_ids)} finished samples, resuming...")
+            else:
+                tqdm.write("No existing results found, starting from scratch.")
 
-            print(f"Dataset {dataset_name} processed. Results saved to {output_file}")
+            try:
+                with tqdm(
+                    total=len(data),
+                    desc=f"{model_name} | {dataset_name}",
+                    unit="sample",
+                    dynamic_ncols=True,
+                ) as pbar:
+
+                    for idx, sample in enumerate(data):
+                        sample_id = (
+                            sample.get("sample_id")
+                            or sample.get("question_id")
+                            or f"sample_{idx + 1}"
+                        )
+                        sample_id = str(sample_id)
+
+                        if sample_id in finished_ids:
+                            pbar.update(1)
+                            continue
+
+                        pbar.set_postfix_str(f"id={sample_id}")
+
+                        try:
+                            model_instance.generate_answer(
+                                idx,
+                                sample,
+                                dataset_name,
+                                output_file
+                            )
+                            dump_sglang_metrics(exp_dir)
+
+                        except Exception as e:
+                            tqdm.write(f"[ERROR] Sample {sample_id} failed: {e}")
+
+                        pbar.update(1)
+
+            except KeyboardInterrupt:
+                tqdm.write("\n[INTERRUPTED] Caught KeyboardInterrupt, exiting safely.")
+                tqdm.write(f"Progress saved in {output_file}")
+                return
+
+            tqdm.write(f"Dataset {dataset_name} finished. Results saved to {output_file}")
 
 def load_config(config_path: str):
     if config_path.endswith(".yaml") or config_path.endswith(".yml"):

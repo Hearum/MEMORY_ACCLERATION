@@ -65,7 +65,7 @@ class simpleragModel:
         self.client = \
             OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_API_BASE"))
         self.client_embedding = \
-            OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url="http://localhost:33333/v1")
+            OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url="http://localhost:8000/v1")
     
     def generate_response(self, question, context):
         template = Template(PROMPT)
@@ -103,7 +103,7 @@ class simpleragModel:
     def calculate_embedding(self, text):
         if len(text.strip()) >= 8192:
             text = text[:8192]  # Truncate to first 8192 characters
-        response = self.client_embedding.embeddings.create(model=self.embedding_model, input=text)
+        response = self.client_embedding.embeddings.create(model="/mnt/data3/models/Qwen3-Embedding-4B", input=text)
         return response.data[0].embedding
 
     def calculate_similarity(self, emb1, emb2):

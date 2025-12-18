@@ -25,6 +25,17 @@ def ensure_dir_exists(dir_path):
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)  
 
+def clear_folder_contents(folder_path):
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)  # 删除文件或符号链接
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)  # 删除子目录
+        except Exception as e:
+            print(f"Failed to delete {file_path}: {e}")
+
 class HippoRAGModel:
     def __init__(self, chunk_size=500, save_dir='outputs_locomo10',topk=20):
 
@@ -113,7 +124,6 @@ class HippoRAGModel:
 
         # === 5: Retrieval ===
         outputs = []
-
         for qa in qa_pairs:
             question = qa["question"]
             original_answer = qa.get("answer", "")
@@ -134,27 +144,48 @@ class HippoRAGModel:
                 continue
             
             system_answer = str(qa_result[0][0].answer) if isinstance(qa_result[0], list) else str(qa_result[0].answer)
-
-            outputs.append({
+            result = {
                 "sample_id": sample_id,
                 "speaker_a": speaker_a,
                 "speaker_b": speaker_b,
                 "original_answer": original_answer,
                 "question": question,
-                "retrieval_result":str(retrieval_result),
+                # "retrieval_result": str(retrieval_result),
                 "system_answer": system_answer,
                 "timestamp": get_timestamp(),
-                **({"category": qa.get("category")} if "category" in qa else {}),
-                **({"question_type": qa.get("question_type")} if "question_type" in qa else {})
-            })
+            }
+
+            if "category" in qa:
+                result["category"] = qa.get("category")
+
+            if "question_type" in qa:
+                result["question_type"] = qa.get("question_type")
+
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            with open(output_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(result, ensure_ascii=False) + "\n")
+        print(f"✅ Sample {sample_id} processed and saved.")
+        clear_folder_contents(f"{os.environ.get('EXP_RESULTS_DIR')}/memory_temp/{idx}")
+            # outputs.append({
+            #     "sample_id": sample_id,
+            #     "speaker_a": speaker_a,
+            #     "speaker_b": speaker_b,
+            #     "original_answer": original_answer,
+            #     "question": question,
+            #     # "retrieval_result":str(retrieval_result),
+            #     "system_answer": system_answer,
+            #     "timestamp": get_timestamp(),
+            #     **({"category": qa.get("category")} if "category" in qa else {}),
+            #     **({"question_type": qa.get("question_type")} if "question_type" in qa else {})
+            # })
 
         # === 8: append to output file ===
-        os.makedirs(os.path.dirname(output_file), exist_ok=True)
-        with open(output_file, "a", encoding="utf-8") as f:
-            json.dump(outputs, f, ensure_ascii=False, indent=2)
-            f.write("\n")
+        # os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        # with open(output_file, "a", encoding="utf-8") as f:
+        #     json.dump(outputs, f, ensure_ascii=False, indent=2)
+        #     f.write("\n")
 
-        print(f"✅ Sample {sample_id} processed and saved.")
+        # print(f"✅ Sample {sample_id} processed and saved.")
 
     # def generate_answer(self, idx, sample, dataset_name, output_file):
 

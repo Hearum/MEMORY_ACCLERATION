@@ -1,23 +1,21 @@
-
-#!/bin/bash
 cd /home/shm/document/MEMORY_ACCLERATION
-MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
-START_PORT=30000
+MODEL_PATH="/mnt/data/models/Qwen3-32B" # /mnt/data/models/zhipu-glm-4-9b-chat-1m | /mnt/data/models/Qwen3-32B
+START_PORT=30085
 PORT=$START_PORT
 while ss -tuln | grep -q ":$PORT "; do
     PORT=$((PORT + 1))
 done
 
-CUDA_DEVICES=7
+CUDA_DEVICES=5,7
 
-MODEL_NAME="memo0"
-DATASETS="locomo10"
-
+MODEL_NAME="simplerag"
+DATASETS="longmemeval_s"
+# longmemeval_s locomo10
 # embed
 export EMBEDDING_API_BASE="http://localhost:30099/v1"
 
 NOW=$(date +"%Y-%m-%d_%H-%M-%S")
-RESULTS_DIR="/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_${MODEL_NAME}_${DATASETS}_mem"
+RESULTS_DIR="/home/shm/document/MEMORY_ACCLERATION/results/Qwen3-32B-1m-GGUF_${MODEL_NAME}_${DATASETS}_mem"
 export EXP_RESULTS_DIR="$RESULTS_DIR"
 
 mkdir -p "$RESULTS_DIR"
@@ -25,13 +23,14 @@ mkdir -p "$RESULTS_DIR"
 LOG_FILE="$RESULTS_DIR/sglang_${MODEL_NAME}_${DATASETS}_$PORT.log"
 SCRIPT_PATH="$(readlink -f "$0")"
 SCRIPT_NAME="$(basename "$SCRIPT_PATH")"
-cp -v "$SCRIPT_PATH" "$RESULTS_DIR/${SCRIPT_NAME%.sh}_backup_.sh"
+cp -v "$SCRIPT_PATH" "$RESULTS_DIR/${SCRIPT_NAME%.sh}.sh"
 
 echo "Starting SGLang server..."
 echo "Logs will be saved to $LOG_FILE"
 
+source ~/anaconda3/etc/profile.d/conda.sh
+conda activate sglang
 CUDA_VISIBLE_DEVICES=$CUDA_DEVICES \
-PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 python -m sglang.launch_server \
   --host 0.0.0.0 \
   --port $PORT \
@@ -39,9 +38,9 @@ python -m sglang.launch_server \
   --served-model-name LLAMA \
   --attention-backend triton \
   --chunked-prefill-size 4096 \
-  --max-total-tokens 60000  \
+  --max-total-tokens 40000  \
   --allow-auto-truncate \
-  --tensor-parallel-size 1 \
+  --tensor-parallel-size 2 \
   --trust-remote-code \
   --mem-fraction-static 0.95 \
   --disable-shared-experts-fusion \
@@ -72,7 +71,8 @@ export OPENROUTER_API_BASE="http://localhost:$PORT/v1"
 
 export HF_ENDPOINT=https://hf-mirror.com
 
-# python3 /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py
+source ~/anaconda3/etc/profile.d/conda.sh
+conda activate hipporag
 python3 /home/shm/document/MEMORY_ACCLERATION/run_pipeline.py \
   --models $MODEL_NAME \
   --datasets $DATASETS 

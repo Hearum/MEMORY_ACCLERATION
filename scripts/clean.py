@@ -1,7 +1,7 @@
 import json
 
-input_path = "/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_HippoRAG_longmemeval_oracle_mem/HippoRAG_longmemeval_oracle_generation_results.jsonl"
-output_path = "//home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_HippoRAG_longmemeval_oracle_mem/HippoRAG_longmemeval_oracle_generation_results1.jsonl"
+input_path = "/home/shm/document/MEMORY_ACCLERATION/results/Qwen3-32B-1m-GGUF_HippoRAG_longmemeval_s_mem/bf_HippoRAG_longmemeval_s_generation_results.jsonl"
+output_path = "/home/shm/document/MEMORY_ACCLERATION/results/Qwen3-32B-1m-GGUF_HippoRAG_longmemeval_s_mem/HippoRAG_longmemeval_s_generation_results.jsonl"
 
 decoder = json.JSONDecoder()
 

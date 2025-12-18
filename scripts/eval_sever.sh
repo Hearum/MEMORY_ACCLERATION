@@ -1,7 +1,7 @@
 MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
 # "/mnt/data/models/Llama-3.2-3B-Instruct"
 # /mnt/data/models/glm-4-9b/
-PORT=30144
+PORT=30145
 export CUDA_VISIBLE_DEVICES=7
 
 echo "Starting SGLang server..."
@@ -24,30 +24,7 @@ python -m sglang.launch_server \
 
 export HF_ENDPOINT=https://hf-mirror.com
 export OPENAI_API_KEY="nope"
-export OPENAI_API_BASE="http://localhost:30144/v1"
+export OPENAI_API_BASE="http://localhost:30145/v1"
 conda activate sglang
-python /home/shm/document/MEMORY_ACCLERATION/evaluators/base_evaluator.py --input_file /home/shm/document/MEMORY_ACCLERATION/model/Nemori/nemori/evaluation/longmemeval_results.json
-
-/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_HippoRAG_locomo10_mem/HippoRAG_locomo10_generation_results1.jsonl
-/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_HippoRAG_longmemeval_oracle_mem/HippoRAG_longmemeval_oracle_generation_results1.jsonl
-/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_HippoRAG_longmemeval_s_mem/HippoRAG_longmemeval_s_generation_results.jsonl
-
-/home/shm/document/MEMORY_ACCLERATION/model/Nemori/nemori/evaluation/locomo/results_cleaned.
-/home/shm/document/MEMORY_ACCLERATION/model/Nemori/nemori/evaluation/longmemeval_results.json
-
-/home/shm/document/EverMemOS-main/evaluation/results/locomo-evermemos/answer_results.json
-/home/shm/document/EverMemOS-main/evaluation/results/longmemeval-evermemos/answer_results.json
-
-/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_AMEM_locomo10_mem/realtime_results.jsonl
-
-/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_QA_longmemeval_s_mem/QA_longmemeval_s_generation_results.jsonl
-/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_QA_locomo10_mem_bf/QA_locomo10_generation_results.jsonl
-/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_QA_longmemeval_oracle_mem_bf/QA_longmemeval_oracle_generation_results.jsonl
-
-/home/shm/document/MEMORY_ACCLERATION/results/kaiwen/MemGAS_locomo10_generation_results.jsonl
-/home/shm/document/MEMORY_ACCLERATION/results/kaiwen/MemGAS_longmemeval_oracle_generation_results.jsonl
-/home/shm/document/MEMORY_ACCLERATION/results/kaiwen/MemGAS_longmemeval_s_generation_results.jsonl
-
-/home/shm/document/MEMORY_ACCLERATION/results/kaiwen/simplerag_locomo10_generation_results.jsonl
-/home/shm/document/MEMORY_ACCLERATION/results/kaiwen/simplerag_longmemeval_oracle_generation_results.jsonl
-/home/shm/document/MEMORY_ACCLERATION/results/kaiwen/simplerag_longmemeval_s_generation_results.jsonl
+python /home/shm/document/MEMORY_ACCLERATION/evaluators/base_evaluator.py --input_file /home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_HippoRAG_longmemeval_s_mem/HippoRAG_longmemeval_s_generation_results.jsonl
+# python /home/shm/document/MEMORY_ACCLERATION/evaluators/base_evaluator.py --input_file /home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_MemoryOS_locomo10_mem/MemoryOS_locomo10_generation_results.jsonl  --dataset_type longmemeval

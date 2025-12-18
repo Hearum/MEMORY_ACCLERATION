@@ -1,22 +1,23 @@
 
 #!/bin/bash
 cd /home/shm/document/MEMORY_ACCLERATION
-MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m"
+MODEL_PATH="/mnt/data/models/zhipu-glm-4-9b-chat-1m" # /mnt/data/models/zhipu-glm-4-9b-chat-1m | /mnt/data/models/Qwen3-32B
 START_PORT=30000
 PORT=$START_PORT
 while ss -tuln | grep -q ":$PORT "; do
     PORT=$((PORT + 1))
 done
 
-CUDA_DEVICES=0
+CUDA_DEVICES=2
 
 MODEL_NAME="HippoRAG"
-DATASETS="locomo10"
+DATASETS="longmemeval_s"
 # longmemeval_s locomo10
 # embed
 export EMBEDDING_API_BASE="http://localhost:30099/v1"
 
 NOW=$(date +"%Y-%m-%d_%H-%M-%S")
+# RESULTS_DIR="/home/shm/document/MEMORY_ACCLERATION/results/Qwen3-32B-1m-GGUF_${MODEL_NAME}_${DATASETS}_mem"
 RESULTS_DIR="/home/shm/document/MEMORY_ACCLERATION/results/glm-4-9b-chat-1m-GGUF_${MODEL_NAME}_${DATASETS}_mem"
 export EXP_RESULTS_DIR="$RESULTS_DIR"
 

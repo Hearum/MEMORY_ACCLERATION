@@ -396,12 +396,16 @@ class MemoryOSModel:
                 **({"question_type": qa.get("question_type")} if "question_type" in qa else {})
             })
         try:
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
             with open(output_file, "a", encoding="utf-8") as f:
-                json.dump(results, f, ensure_ascii=False, indent=2)
-            print(f"sample {idx + 1} success, result save in {output_file}")
+                for result in results:
+                    f.write(json.dumps(result, ensure_ascii=False) + "\n")
+
+            print(f"sample {idx + 1} success, results saved to {output_file}")
+
         except Exception as e:
-            print(f"somthing woring happen in save: {e}")
-    
+            print(f"something wrong happened in save: {e}")
 
 
 # def get_model(client):

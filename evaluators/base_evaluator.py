@@ -237,11 +237,41 @@ if __name__ == "__main__":
     evaluator.save()
 
     print("Summary (per category):")
-    for cat in sorted(summary.keys(), key=lambda x: int(x) if x != "overall_acc" else float('inf')):
-        if cat == "overall_acc":
+        
+    numeric_cats = []
+    string_metrics = {
+        "count": 0,
+        "f1_score": 0.0,
+        "bleu_score": 0.0,
+        "llm_score": 0.0,
+        "accuracy": 0.0,
+    }
+
+    string_count = 0  # 用于加权平均
+
+    for k, v in summary.items():
+        if k == "overall_acc":
             continue
-        metrics = summary[cat]
-        print(f"Category {cat}: {metrics}")
+        try:
+            int(k)
+            numeric_cats.append(k)
+        except ValueError:
+            # 字符串类别：累计到一个总的
+            cnt = v.get("count", 0)
+            string_count += cnt
+            for m in string_metrics:
+                string_metrics[m] += v[m] * cnt
+
+    # 1️⃣ 数字类别：按顺序输出
+    for cat in sorted(numeric_cats, key=int):
+        print(f"Category {cat}: {summary[cat]}")
+
+    # 2️⃣ 字符串类别：输出一个 aggregated 结果
+    if string_count > 0:
+        for m in string_metrics:
+            string_metrics[m] /= string_count
+        string_metrics["count"] = string_count
+        print(f"Category string (aggregated): {string_metrics}")
 
     print("\nSummary (overall):")
     print(f"Overall accuracy: {summary['overall_acc']['accuracy']:.4f}")
